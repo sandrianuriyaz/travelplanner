@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Masuk — Travel Planner</title>
+  <link rel="stylesheet" href="dist/output.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0..1" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-display { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .glass { background: rgba(255,255,255,0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    .tab-active { background: linear-gradient(135deg, #0d9488, #2563eb); color: #fff; }
+    .tab-inactive { color: #64748b; }
+    input:focus { outline: none; box-shadow: 0 0 0 3px rgba(13,148,136,0.2); }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
+
+  <!-- Background blobs -->
+  <div class="fixed top-0 left-0 w-96 h-96 bg-teal-300 rounded-full opacity-20 blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+  <div class="fixed bottom-0 right-0 w-96 h-96 bg-blue-400 rounded-full opacity-20 blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
+
+  <div class="glass rounded-3xl shadow-2xl border border-white/60 w-full max-w-md p-8">
+
+    <!-- Logo -->
+    <div class="flex items-center gap-3 mb-8 justify-center">
+      <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-600 to-blue-600 flex items-center justify-center shadow-lg">
+        <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1">sailing</span>
+      </div>
+      <span class="font-display text-2xl font-black text-teal-800">Travel Planner</span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex bg-slate-100 rounded-2xl p-1 mb-6 gap-1">
+      <button id="tab-login" onclick="switchTab('login')"
+        class="tab-active flex-1 py-2.5 rounded-xl text-sm font-semibold font-display transition-all duration-200">
+        Masuk
+      </button>
+      <button id="tab-register" onclick="switchTab('register')"
+        class="tab-inactive flex-1 py-2.5 rounded-xl text-sm font-semibold font-display transition-all duration-200">
+        Daftar
+      </button>
+    </div>
+
+    <!-- Form Login -->
+    <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Email</label>
+        <input type="email" id="login-email" required placeholder="email@contoh.com"
+          class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white/80 transition-all" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Password</label>
+        <div class="relative">
+          <input type="password" id="login-password" required placeholder="••••••••"
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white/80 transition-all pr-12" />
+          <button type="button" onclick="togglePassword('login-password', this)"
+            class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <span class="material-symbols-outlined text-[20px]">visibility_off</span>
+          </button>
+        </div>
+      </div>
+      <div id="login-error" class="hidden text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg"></div>
+      <button type="submit" id="btn-login"
+        class="w-full bg-gradient-to-r from-teal-600 to-blue-600 text-white font-display font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 active:scale-95 transition-all">
+        Masuk
+      </button>
+    </form>
+
+    <!-- Form Register -->
+    <form id="form-register" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Username</label>
+        <input type="text" id="reg-username" required placeholder="username_kamu"
+          class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white/80 transition-all" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Email</label>
+        <input type="email" id="reg-email" required placeholder="email@contoh.com"
+          class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white/80 transition-all" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Password</label>
+        <div class="relative">
+          <input type="password" id="reg-password" required placeholder="Min. 8 karakter"
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white/80 transition-all pr-12" />
+          <button type="button" onclick="togglePassword('reg-password', this)"
+            class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <span class="material-symbols-outlined text-[20px]">visibility_off</span>
+          </button>
+        </div>
+      </div>
+      <div id="reg-error" class="hidden text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg"></div>
+      <button type="submit" id="btn-register"
+        class="w-full bg-gradient-to-r from-teal-600 to-blue-600 text-white font-display font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 active:scale-95 transition-all">
+        Buat Akun
+      </button>
+    </form>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Redirect jika sudah login
+    if (auth.isLoggedIn()) window.location.href = 'dashboard.html';
+
+    function switchTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('form-login').classList.toggle('hidden', !isLogin);
+      document.getElementById('form-register').classList.toggle('hidden', isLogin);
+      document.getElementById('tab-login').className = `flex-1 py-2.5 rounded-xl text-sm font-semibold font-display transition-all duration-200 ${isLogin ? 'tab-active' : 'tab-inactive'}`;
+      document.getElementById('tab-register').className = `flex-1 py-2.5 rounded-xl text-sm font-semibold font-display transition-all duration-200 ${!isLogin ? 'tab-active' : 'tab-inactive'}`;
+    }
+
+    function togglePassword(inputId, btn) {
+      const input = document.getElementById(inputId);
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      btn.querySelector('span').textContent = isHidden ? 'visibility' : 'visibility_off';
+    }
+
+    function setLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      btn.disabled = loading;
+      btn.textContent = loading ? 'Memproses...' : (btnId === 'btn-login' ? 'Masuk' : 'Buat Akun');
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('login-error');
+      errEl.classList.add('hidden');
+      setLoading('btn-login', true);
+      try {
+        const res = await api.auth.login(
+          document.getElementById('login-email').value,
+          document.getElementById('login-password').value
+        );
+        auth.setSession(res.token, res.data);
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        setLoading('btn-login', false);
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('reg-error');
+      errEl.classList.add('hidden');
+      setLoading('btn-register', true);
+      try {
+        await api.auth.register(
+          document.getElementById('reg-username').value,
+          document.getElementById('reg-email').value,
+          document.getElementById('reg-password').value
+        );
+        showToast('Akun berhasil dibuat! Silakan masuk.');
+        switchTab('login');
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        setLoading('btn-register', false);
+      }
+    }
+  </script>
+</body>
+</html>

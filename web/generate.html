@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buat Itinerary — Travel Planner</title>
+  <link rel="stylesheet" href="dist/output.css" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0..1" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+    }
+
+    .font-display {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .nav-link, .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #475569;
+      transition: all .2s;
+      text-decoration: none;
+    }
+
+    .nav-link:hover, .sidebar-link:hover {
+      background: rgba(255, 255, 255, .4);
+      color: #0d9488;
+    }
+
+    .nav-link.active, .sidebar-link.active {
+      background: linear-gradient(135deg, #0d9488, #2563eb);
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(13,148,136,.3);
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, .2);
+      border-color: #0d9488;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(13, 148, 136, .2);
+      border-radius: 9px;
+    }
+
+    /* Map utama */
+    #main-map {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* Popup klik peta */
+    #koordinat-info {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      background: rgba(15, 23, 42, .75);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-family: 'Inter', sans-serif;
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* Panel summary rute */
+    #route-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 400;
+      background: rgba(255, 255, 255, .92);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid rgba(0, 0, 0, .07);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #99f6e4;
+      border-top-color: #0d9488;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -20;
+      }
+    }
+
+    .route-line-anim {
+      stroke-dasharray: 12 5;
+      animation: dash .6s linear infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: .6
+      }
+
+      50% {
+        transform: scale(2.2);
+        opacity: 0
+      }
+    }
+
+    /* Leaflet popup */
+    .leaflet-popup-content-wrapper {
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    }
+
+    .leaflet-popup-content {
+      margin: 12px 14px;
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Mobile Header -->
+  <header class="mobile-header hidden fixed top-0 left-0 right-0 h-16 glass z-30 px-6 items-center justify-between border-b border-white/30">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-600 to-blue-600 flex items-center justify-center">
+        <span class="material-symbols-outlined text-white text-[16px]">sailing</span>
+      </div>
+      <span class="font-display font-black text-teal-800 text-sm">Travel Planner</span>
+    </div>
+    <button onclick="bukaProfile()" class="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 font-bold text-xs" id="mobile-avatar-initial">?</button>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar-desktop fixed left-0 top-0 h-full w-64 glass border-r border-white/30 shadow-xl z-40 flex flex-col p-6">
+    <div class="flex items-center gap-3 mb-10">
+      <div
+        class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-600 to-blue-600 flex items-center justify-center shadow-lg">
+        <span class="material-symbols-outlined text-white text-[20px]"
+          style="font-variation-settings:'FILL' 1">sailing</span>
+      </div>
+      <span class="font-display font-black text-teal-800 text-lg">Travel Planner</span>
+    </div>
+
+    <nav class="flex-1 space-y-1">
+      <a href="dashboard.html" class="sidebar-link">
+        <span class="material-symbols-outlined text-[20px]">dashboard</span>Dashboard
+      </a>
+      <a href="generate.html" class="sidebar-link active">
+        <span class="material-symbols-outlined text-[20px]">auto_awesome</span>Buat Itinerary
+      </a>
+      <a href="map.html" class="sidebar-link">
+        <span class="material-symbols-outlined text-[20px]">map</span>Peta Destinasi
+      </a>
+    </nav>
+
+    <div class="pt-6 border-t border-white/20">
+      <div
+        class="flex items-center gap-3 p-3 rounded-2xl bg-white/40 hover:bg-white/60 ring-1 ring-white/10 transition-all cursor-pointer mb-3 shadow-sm"
+        onclick="bukaProfile()">
+        <div
+          class="rounded-full bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md"
+          style="width:40px; height:40px; min-width:40px;" id="avatar-initial">?</div>
+        <div class="overflow-hidden flex-1">
+          <p class="text-sm font-bold text-teal-800 truncate" id="sidebar-username">Loading...</p>
+          <p class="text-xs text-slate-500 truncate" id="sidebar-email">...</p>
+        </div>
+      </div>
+      <button onclick="auth.logout()"
+        class="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-all text-sm font-medium">
+        <span class="material-symbols-outlined text-[18px]">logout</span>Keluar
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content: fixed, starts after sidebar (left:256px), split flex -->
+  <main style="position:fixed; left:256px; top:0; right:0; bottom:0; display:flex; z-index:10;">
+
+    <!-- Panel Kiri: Form + Hasil -->
+    <section style="width:380px; flex-shrink:0; height:100%; overflow-y:auto; display:flex; flex-direction:column;" class="bg-white/70 border-r border-white/30" id="form-section">
+      <div class="px-5 pt-5 pb-3 border-b border-white/40">
+        <h1 class="font-display font-black text-teal-900 text-lg leading-tight">Buat Itinerary</h1>
+        <p class="text-slate-400 text-xs mt-0.5">Klik peta untuk set titik awal</p>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-5 pb-6">
+        <form id="form-generate" onsubmit="handleGenerate(event)" class="space-y-4 pt-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Durasi (Hari)</label>
+              <input type="number" id="durasi" min="1" max="7" value="2" required
+                class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white/80 transition-all" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Preferensi</label>
+              <select id="preferensi"
+                class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white/80 transition-all">
+                <option value="">Semua</option>
+                <option>Budaya</option>
+                <option>Bahari</option>
+                <option>Cagar Alam</option>
+                <option>Taman Hiburan</option>
+                <option>Pusat Perbelanjaan</option>
+                <option>Tempat Ibadah</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Total Budget (Rp)</label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold">Rp</span>
+              <input type="number" id="budget" min="100000" step="50000" value="500000" required
+                class="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm bg-white/80 transition-all" />
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1" id="budget-label">≈ Rp 250.000 / hari</p>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Metode Penentuan Titik Awal</label>
+            <div class="flex gap-2 mb-3 bg-white/60 p-1 rounded-xl border border-slate-200">
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="metode_lokasi" value="gps" class="peer hidden" />
+                <div class="peer-checked:bg-teal-500 peer-checked:text-white text-slate-500 text-xs font-semibold py-2 rounded-lg transition-all">GPS</div>
+              </label>
+              <label class="flex-1 text-center cursor-pointer">
+                <input type="radio" name="metode_lokasi" value="map" class="peer hidden" checked />
+                <div class="peer-checked:bg-teal-500 peer-checked:text-white text-slate-500 text-xs font-semibold py-2 rounded-lg transition-all">Peta</div>
+              </label>
+            </div>
+
+            <div class="flex gap-2 p-3 bg-teal-50/60 rounded-xl border border-teal-100">
+              <span class="material-symbols-outlined text-teal-500 text-[18px] flex-shrink-0 mt-0.5" style="font-variation-settings:'FILL' 1">location_on</span>
+              <div class="flex-1 min-w-0">
+                <p id="koordinat-label" class="text-xs font-semibold text-teal-800 truncate">Menunggu lokasi...</p>
+                <p id="koordinat-sub" class="text-[10px] text-slate-400">Lat: <span id="lat-display">-</span> · Lng: <span id="lng-display">-</span></p>
+              </div>
+            </div>
+            <input type="hidden" id="lat" />
+            <input type="hidden" id="lng" />
+          </div>
+
+          <div id="form-error" class="hidden text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg"></div>
+          <button type="submit" id="btn-generate"
+            class="w-full bg-gradient-to-r from-teal-600 to-blue-600 text-white font-display font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-500/25 active:scale-95 transition-all flex items-center justify-center gap-2">
+            Generate Itinerary
+          </button>
+        </form>
+
+        <div id="loading-panel" class="hidden pt-6 text-center">
+            <div class="spinner mx-auto mb-2"></div>
+            <p class="text-xs text-slate-500">Menghitung rute optimal...</p>
+        </div>
+
+        <div id="hasil-panel" class="hidden pt-4 space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- Panel Kanan: Peta Utama -->
+    <section style="flex:1; position:relative; height:100%;">
+      <!-- Map tile -->
+      <div id="main-map" style="position:absolute; inset:0; z-index:0;"></div>
+
+      <!-- Info klik peta -->
+      <div id="koordinat-info" class="hidden"
+        style="position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:500;
+          background:rgba(15,23,42,.75); color:#fff; padding:6px 14px; border-radius:999px;
+          font-size:12px; backdrop-filter:blur(8px); pointer-events:none; white-space:nowrap;">
+        📍 Klik peta untuk set titik awal
+      </div>
+
+      <!-- Loading rute -->
+      <div id="rute-loading" style="display:none; position:absolute; inset:0; z-index:800;
+        background:rgba(240,249,255,.6); backdrop-filter:blur(4px);
+        flex-direction:column; align-items:center; justify-content:center; gap:10px;">
+        <div class="spinner" style="width:36px;height:36px;border-width:4px"></div>
+        <p id="rute-loading-teks" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#0f766e;font-size:15px">Menggambar rute...</p>
+      </div>
+
+      <!-- Instruksi awal -->
+      <div id="instruksi-awal" style="position:absolute; inset:0; z-index:10;
+        display:flex; align-items:center; justify-content:center; pointer-events:none;">
+        <div class="glass" style="border-radius:24px; padding:24px 32px; text-align:center; max-width:260px;">
+          <span class="material-symbols-outlined" style="font-size:48px; color:#99f6e4; display:block; margin-bottom:10px; font-variation-settings:'FILL' 1">travel_explore</span>
+          <p style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; color:#0f766e; font-size:15px; margin:0 0 4px">Pilih titik awal di peta</p>
+          <p style="color:#94a3b8; font-size:12px; margin:0">Lalu klik Generate Itinerary</p>
+        </div>
+      </div>
+
+      <!-- Route Summary Bar -->
+      <div id="route-bar" style="display:none; position:absolute; bottom:0; left:0; right:0; z-index:400;
+        background:rgba(255,255,255,.92); backdrop-filter:blur(16px);
+        border-top:1px solid rgba(0,0,0,.07); padding:10px 20px;
+        align-items:center; gap:20px; font-family:'Inter',sans-serif;">
+        <div style="width:10px;height:10px;background:#0d9488;border-radius:50%;flex-shrink:0" id="bar-dot"></div>
+        <div style="flex:1">
+          <p style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#0f766e;font-size:14px;margin:0" id="bar-judul">—</p>
+          <p style="color:#64748b;font-size:11px;margin:0" id="bar-sub">—</p>
+        </div>
+        <div style="text-align:center">
+          <p style="font-weight:700;color:#0d9488;font-size:16px;margin:0" id="bar-jarak">—</p>
+          <p style="color:#94a3b8;font-size:10px;margin:0">JARAK</p>
+        </div>
+        <div style="text-align:center">
+          <p style="font-weight:700;color:#2563eb;font-size:16px;margin:0" id="bar-waktu">—</p>
+          <p style="color:#94a3b8;font-size:10px;margin:0">WAKTU</p>
+        </div>
+        <div style="text-align:center">
+          <p style="font-weight:700;color:#7c3aed;font-size:16px;margin:0" id="bar-dest">—</p>
+          <p style="color:#94a3b8;font-size:10px;margin:0">DESTINASI</p>
+        </div>
+        <a id="bar-nav-btn" href="#"
+          style="background:linear-gradient(135deg,#0d9488,#2563eb);color:#fff;
+          padding:8px 16px;border-radius:12px;font-size:12px;font-weight:700;
+          font-family:'Plus Jakarta Sans',sans-serif;text-decoration:none;
+          display:flex;align-items:center;gap:6px;white-space:nowrap">
+          <span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:'FILL' 1">navigation</span>
+          Navigasi Live
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    auth.requireAuth();
+
+    // ── Sinkronisasi Profil ──────────────────────────────────────────
+    const user = auth.getUser();
+    if (user) {
+      document.getElementById('sidebar-username').textContent = user.username;
+      document.getElementById('sidebar-email').textContent = user.email;
+      const initial = user.username[0].toUpperCase();
+      document.getElementById('avatar-initial').textContent = initial;
+      const mobileAvatar = document.getElementById('mobile-avatar-initial');
+      if (mobileAvatar) mobileAvatar.textContent = initial;
+    }
+
+    const WARNA_HARI = ['#0d9488', '#2563eb', '#9333ea', '#dc2626', '#d97706', '#16a34a', '#db2777'];
+    let startLat = null, startLng = null, startMarker = null;
+    let ruteLayers = [], modeLokasi = 'map';
+
+    const map = L.map('main-map', { zoomControl: false }).setView([-6.914744, 107.609810], 9);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    function setTitikAwal(lat, lng, source) {
+      startLat = +lat.toFixed(6); startLng = +lng.toFixed(6);
+      document.getElementById('lat').value = startLat; document.getElementById('lng').value = startLng;
+      document.getElementById('lat-display').textContent = startLat; document.getElementById('lng-display').textContent = startLng;
+      document.getElementById('koordinat-label').textContent = source === 'gps' ? 'GPS ditemukan ✓' : 'Titik peta terpilih ✓';
+      
+      if (startMarker) map.removeLayer(startMarker);
+      startMarker = L.marker([startLat, startLng]).addTo(map);
+      map.setView([startLat, startLng], 13);
+    }
+
+    map.on('click', e => { if (modeLokasi === 'map') setTitikAwal(e.latlng.lat, e.latlng.lng, 'map'); });
+
+    document.querySelectorAll('input[name="metode_lokasi"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        modeLokasi = e.target.value;
+        if (modeLokasi === 'gps') {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => setTitikAwal(pos.coords.latitude, pos.coords.longitude, 'gps'), 
+                () => { alert('Gagal mendapatkan lokasi GPS'); document.querySelector('input[value="map"]').click(); });
+            }
+        } else {
+            // Zoom out saat pilih peta agar user bisa melihat area luas
+            map.flyTo([map.getCenter().lat, map.getCenter().lng], 6, { duration: 1.2 });
+        }
+      });
+    });
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    function fmtRupiah(n) {
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
+    }
+    function fmtJarak(m) { return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`; }
+    function fmtWaktu(s) {
+      const j = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+      return j > 0 ? `${j}j ${m}mnt` : `${m} mnt`;
+    }
+    function haversine(lat1, lng1, lat2, lng2) {
+      const R = 6371, r = d => d * Math.PI / 180;
+      const dLat = r(lat2 - lat1), dLng = r(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(r(lat1)) * Math.cos(r(lat2)) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // Normalisasi: destinasi flat langsung di jadwal[i].destinasi[j]
+    // Field: nama, kategori, latitude, longitude, harga_tiket, estimated_cost
+    function normalizeJadwal(jadwal) {
+      return jadwal.map(hari => ({
+        hari: hari.hari,
+        destinasi: hari.destinasi.map(d => ({
+          order_in_day:   d.urutan || d.order_in_day,
+          estimated_cost: d.estimated_cost,
+          destination: {
+            name:        d.nama      || d.name,
+            category:    d.kategori  || d.category,
+            latitude:    parseFloat(d.latitude),
+            longitude:   parseFloat(d.longitude),
+            entrance_fee: d.harga_tiket || d.entrance_fee,
+          }
+        }))
+      }));
+    }
+
+    let destMarkers = [];
+    function hapusRute() {
+      ruteLayers.forEach(l => map.removeLayer(l));
+      ruteLayers = [];
+      destMarkers = [];
+      document.getElementById('route-bar').style.display = 'none';
+    }
+
+    async function osrmRoute(waypoints) {
+      const coords = waypoints.map(([la, lo]) => `${lo},${la}`).join(';');
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 12000);
+      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`, { signal: ctrl.signal });
+      const data = await res.json();
+      if (!data.routes?.length) throw new Error('Rute tidak ditemukan');
+      return data.routes[0];
+    }
+
+    function fokusMarker(hi, di) {
+      const m = destMarkers.find(x => x._hi === hi && x._di === di);
+      if (m) { map.setView(m.getLatLng(), 14, { animate: true }); m.openPopup(); }
+    }
+
+    function renderHasil(data) {
+      // Sembunyikan instruksi awal
+      const instr = document.getElementById('instruksi-awal');
+      if (instr) instr.style.display = 'none';
+
+      const jadwal = normalizeJadwal(data.jadwal);
+      const panel = document.getElementById('hasil-panel');
+      let totalDest = 0;
+
+      panel.innerHTML = `
+        <div style="background:rgba(255,255,255,.8);border-radius:16px;padding:14px;margin-bottom:8px;border:1px solid rgba(255,255,255,.6)">
+          <p style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#0f766e;font-size:15px;margin:0 0 2px">${data.duration_days} Hari · ${fmtRupiah(data.total_budget)}</p>
+          <p style="color:#94a3b8;font-size:11px;margin:0">${fmtRupiah(Math.round(data.total_budget / data.duration_days))} / hari</p>
+        </div>
+        ${jadwal.map((hari, hi) => {
+          const warna = WARNA_HARI[hi % WARNA_HARI.length];
+          totalDest += hari.destinasi.length;
+          return `<div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.6);margin-bottom:8px;border-left:4px solid ${warna}">
+            <div style="padding:8px 14px;background:${warna}18;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px;color:${warna}">Hari ${hari.hari}</span>
+              <span style="font-size:11px;color:#94a3b8">${hari.destinasi.length} destinasi</span>
+            </div>
+            ${hari.destinasi.map((d, di) => `
+              <div onclick="fokusMarker(${hi},${di})" id="di-${hi}-${di}"
+                style="padding:10px 14px;cursor:pointer;border-top:1px solid rgba(255,255,255,.5);display:flex;align-items:center;gap:10px;transition:background .15s"
+                onmouseover="this.style.background='rgba(255,255,255,.6)'" onmouseout="this.style.background=''">
+                <div style="width:22px;height:22px;min-width:22px;background:${warna};border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700">${di + 1}</div>
+                <div style="min-width:0">
+                  <p style="font-size:13px;font-weight:600;color:#0f766e;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.destination.name}</p>
+                  <p style="font-size:11px;color:#94a3b8;margin:0">${fmtRupiah(d.estimated_cost)}</p>
+                </div>
+              </div>`).join('')}
+          </div>`;
+        }).join('')}`;
+
+      panel.classList.remove('hidden');
+      document.getElementById('bar-judul').textContent = `Itinerary ${data.duration_days} Hari`;
+      document.getElementById('bar-dest').textContent = totalDest;
+      document.getElementById('bar-nav-btn').href = `map.html?id=${data.itinerary_id}&rute=1`;
+    }
+
+    async function renderRuteDiPeta(data) {
+      hapusRute();
+      const jadwal = normalizeJadwal(data.jadwal);
+      const sLat = data.start_latitude ?? startLat;
+      const sLng = data.start_longitude ?? startLng;
+      const bounds = [[sLat, sLng]];
+      let totalEstJarak = 0, totalEstWaktu = 0, totalDest = 0;
+
+      // Marker start
+      const ikonStart = L.divIcon({
+        className: '',
+        html: `<div style="width:20px;height:20px;background:#ef4444;border:3px solid #fff;border-radius:50%;box-shadow:0 3px 10px rgba(239,68,68,.5)"></div>`,
+        iconSize: [20, 20], iconAnchor: [10, 10],
+      });
+      const sm = L.marker([sLat, sLng], { icon: ikonStart }).bindPopup('<b style="color:#ef4444">📍 Titik Awal</b>').addTo(map);
+      ruteLayers.push(sm);
+
+      // FASE 1: garis lurus + marker
+      const hariMeta = jadwal.filter(h => h.destinasi.length > 0).map((hari, hi) => {
+        const warna = WARNA_HARI[hi % WARNA_HARI.length];
+        const waypoints = [[sLat, sLng], ...hari.destinasi.map(d => [d.destination.latitude, d.destination.longitude]), [sLat, sLng]];
+        let jarakEst = 0;
+        for (let i = 0; i < waypoints.length - 1; i++) jarakEst += haversine(waypoints[i][0], waypoints[i][1], waypoints[i + 1][0], waypoints[i + 1][1]);
+        jarakEst *= 1.35;
+        totalEstJarak += jarakEst * 1000;
+        totalEstWaktu += (jarakEst / 40) * 3600;
+        totalDest += hari.destinasi.length;
+
+        const garisLurus = L.polyline(waypoints, { color: warna, weight: 3, opacity: 0.55, dashArray: '7 8' }).addTo(map);
+        ruteLayers.push(garisLurus);
+
+        hari.destinasi.forEach((d, di) => {
+          const { latitude: lat, longitude: lng, name, entrance_fee } = d.destination;
+          bounds.push([lat, lng]);
+          const icon = L.divIcon({
+            className: '',
+            html: `<div style="width:32px;height:32px;background:${warna};border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.2);font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#fff;font-size:12px">${di + 1}</div>`,
+            iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -18],
+          });
+          const marker = L.marker([lat, lng], { icon }).addTo(map);
+          marker._hi = hi; marker._di = di;
+          marker.bindPopup(`<div style="min-width:160px"><p style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#0f766e;font-size:13px;margin:0 0 4px">${name}</p><span style="background:${warna}20;color:${warna};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700">Hari ${hari.hari} · Stop ${di + 1}</span><p style="color:#64748b;font-size:11px;margin:6px 0 0">🎟 ${fmtRupiah(entrance_fee)}</p></div>`);
+          marker.on('click', () => fokusMarker(hi, di));
+          ruteLayers.push(marker);
+          destMarkers.push(marker);
+        });
+        return { hari, warna, waypoints, garisLurus };
+      });
+
+      if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 20] });
+
+      // Update bar estimasi
+      document.getElementById('bar-jarak').textContent = `≈ ${fmtJarak(totalEstJarak)}`;
+      document.getElementById('bar-waktu').textContent = `≈ ${fmtWaktu(totalEstWaktu)}`;
+      document.getElementById('bar-dest').textContent = totalDest;
+      document.getElementById('route-bar').style.display = 'flex';
+
+      // FASE 2: OSRM parallel di background
+      const hasilOSRM = await Promise.allSettled(hariMeta.map(m => osrmRoute(m.waypoints)));
+      let totalJarak = 0, totalWaktu = 0;
+      hasilOSRM.forEach((hasil, idx) => {
+        const { garisLurus, warna } = hariMeta[idx];
+        if (hasil.status === 'fulfilled') {
+          const route = hasil.value;
+          const latlngs = route.geometry.coordinates.map(([lo, la]) => [la, lo]);
+          map.removeLayer(garisLurus);
+          ruteLayers = ruteLayers.filter(l => l !== garisLurus);
+          const outline = L.polyline(latlngs, { color: '#fff', weight: 9, opacity: .7 }).addTo(map);
+          const garis = L.polyline(latlngs, { color: warna, weight: 5, opacity: .9, dashArray: '12 5' }).addTo(map);
+          outline.bringToBack();
+          ruteLayers.push(outline, garis);
+          totalJarak += route.distance;
+          totalWaktu += route.duration;
+        } else {
+          totalJarak += totalEstJarak / hariMeta.length;
+          totalWaktu += totalEstWaktu / hariMeta.length;
+        }
+      });
+
+      const semuaOK = hasilOSRM.every(h => h.status === 'fulfilled');
+      document.getElementById('bar-jarak').textContent = semuaOK ? fmtJarak(totalJarak) : `≈ ${fmtJarak(totalEstJarak)}`;
+      document.getElementById('bar-waktu').textContent = semuaOK ? fmtWaktu(totalWaktu) : `≈ ${fmtWaktu(totalEstWaktu)}`;
+    }
+
+    async function handleGenerate(e) {
+      e.preventDefault();
+      if (!startLat) return alert('Pilih titik awal di peta terlebih dahulu!');
+
+      const errEl = document.getElementById('form-error');
+      errEl.classList.add('hidden');
+      document.getElementById('btn-generate').disabled = true;
+      document.getElementById('loading-panel').classList.remove('hidden');
+      document.getElementById('hasil-panel').classList.add('hidden');
+      hapusRute();
+
+      try {
+        const res = await api.itinerary.generate({
+          duration_days:   +document.getElementById('durasi').value,
+          total_budget:    +document.getElementById('budget').value,
+          start_latitude:  startLat,
+          start_longitude: startLng,
+          city_preference: document.getElementById('preferensi').value || undefined,
+        });
+        renderHasil(res.data);
+        renderRuteDiPeta(res.data);
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        document.getElementById('btn-generate').disabled = false;
+        document.getElementById('loading-panel').classList.add('hidden');
+      }
+    }
+
+    function bukaProfile() { window.location.href = 'profile.html'; }
+  </script>
+</body>
+
+</html>
