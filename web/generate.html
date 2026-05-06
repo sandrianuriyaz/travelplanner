@@ -156,6 +156,9 @@
       }
     }
 
+    @keyframes navPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.5)}}
+    @keyframes posPulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(2.8);opacity:0}}
+
     /* Leaflet popup */
     .leaflet-popup-content-wrapper {
       border-radius: 14px;
@@ -228,82 +231,102 @@
   <main style="position:fixed; left:256px; top:0; right:0; bottom:0; display:flex; z-index:10;">
 
     <!-- Panel Kiri: Form + Hasil -->
-    <section style="width:380px; flex-shrink:0; height:100%; overflow-y:auto; display:flex; flex-direction:column;" class="bg-white/70 border-r border-white/30" id="form-section">
-      <div class="px-5 pt-5 pb-3 border-b border-white/40">
+    <section style="width:380px; flex-shrink:0; height:100%; display:flex; flex-direction:column;" class="bg-white/70 border-r border-white/30" id="form-section">
+
+      <!-- HEADER MODE FORM -->
+      <div id="header-form" class="px-5 pt-5 pb-3 border-b border-white/40 flex-shrink-0">
         <h1 class="font-display font-black text-teal-900 text-lg leading-tight">Buat Itinerary</h1>
         <p class="text-slate-400 text-xs mt-0.5">Klik peta untuk set titik awal</p>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-5 pb-6">
-        <form id="form-generate" onsubmit="handleGenerate(event)" class="space-y-4 pt-4">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Durasi (Hari)</label>
-              <input type="number" id="durasi" min="1" max="7" value="2" required
-                class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white/80 transition-all" />
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Preferensi</label>
-              <select id="preferensi"
-                class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white/80 transition-all">
-                <option value="">Semua</option>
-                <option>Budaya</option>
-                <option>Bahari</option>
-                <option>Cagar Alam</option>
-                <option>Taman Hiburan</option>
-                <option>Pusat Perbelanjaan</option>
-                <option>Tempat Ibadah</option>
-              </select>
-            </div>
-          </div>
+      <!-- HEADER MODE HASIL (mirip map.html, hidden awalnya) -->
+      <div id="header-hasil" style="display:none" class="flex-shrink-0 border-b border-white/30">
+        <!-- Gradient bar info itinerary -->
+        <div class="px-5 py-3 bg-gradient-to-r from-teal-600 to-blue-600">
+          <p class="text-white/70 text-[10px] font-bold uppercase tracking-widest">Itinerary Aktif</p>
+          <p class="font-display font-black text-white text-base leading-tight" id="hasil-judul">—</p>
+          <p class="text-white/60 text-xs" id="hasil-sub">—</p>
+        </div>
+        <!-- Tombol Buat Baru -->
+        <div class="px-4 py-2 bg-white/50">
+          <button onclick="resetKeForm()"
+            class="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-teal-200 text-teal-700 text-xs font-semibold hover:bg-teal-50 transition-all active:scale-95">
+            <span class="material-symbols-outlined text-[16px]">add</span>
+            Buat Itinerary Baru
+          </button>
+        </div>
+      </div>
 
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Total Budget (Rp)</label>
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold">Rp</span>
-              <input type="number" id="budget" min="100000" step="50000" value="500000" required
-                class="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm bg-white/80 transition-all" />
-            </div>
-            <p class="text-[10px] text-slate-400 mt-1" id="budget-label">≈ Rp 250.000 / hari</p>
-          </div>
+      <!-- SCROLLABLE CONTENT -->
+      <div class="flex-1 overflow-y-auto" id="panel-scroll">
 
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Metode Penentuan Titik Awal</label>
-            <div class="flex gap-2 mb-3 bg-white/60 p-1 rounded-xl border border-slate-200">
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="metode_lokasi" value="gps" class="peer hidden" />
-                <div class="peer-checked:bg-teal-500 peer-checked:text-white text-slate-500 text-xs font-semibold py-2 rounded-lg transition-all">GPS</div>
-              </label>
-              <label class="flex-1 text-center cursor-pointer">
-                <input type="radio" name="metode_lokasi" value="map" class="peer hidden" checked />
-                <div class="peer-checked:bg-teal-500 peer-checked:text-white text-slate-500 text-xs font-semibold py-2 rounded-lg transition-all">Peta</div>
-              </label>
-            </div>
-
-            <div class="flex gap-2 p-3 bg-teal-50/60 rounded-xl border border-teal-100">
-              <span class="material-symbols-outlined text-teal-500 text-[18px] flex-shrink-0 mt-0.5" style="font-variation-settings:'FILL' 1">location_on</span>
-              <div class="flex-1 min-w-0">
-                <p id="koordinat-label" class="text-xs font-semibold text-teal-800 truncate">Menunggu lokasi...</p>
-                <p id="koordinat-sub" class="text-[10px] text-slate-400">Lat: <span id="lat-display">-</span> · Lng: <span id="lng-display">-</span></p>
+        <!-- Form (visible awal) -->
+        <div id="wrapper-form" class="px-5 pb-6">
+          <form id="form-generate" onsubmit="handleGenerate(event)" class="space-y-4 pt-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Durasi (Hari)</label>
+                <input type="number" id="durasi" min="1" max="7" value="2" required
+                  class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white/80 transition-all" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Preferensi</label>
+                <select id="preferensi"
+                  class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white/80 transition-all">
+                  <option value="">Semua</option>
+                  <option>Budaya</option><option>Bahari</option><option>Cagar Alam</option>
+                  <option>Taman Hiburan</option><option>Pusat Perbelanjaan</option><option>Tempat Ibadah</option>
+                </select>
               </div>
             </div>
-            <input type="hidden" id="lat" />
-            <input type="hidden" id="lng" />
-          </div>
 
-          <div id="form-error" class="hidden text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg"></div>
-          <button type="submit" id="btn-generate"
-            class="w-full bg-gradient-to-r from-teal-600 to-blue-600 text-white font-display font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-500/25 active:scale-95 transition-all flex items-center justify-center gap-2">
-            Generate Itinerary
-          </button>
-        </form>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Total Budget (Rp)</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold">Rp</span>
+                <input type="number" id="budget" min="100000" step="50000" value="500000" required
+                  class="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm bg-white/80 transition-all" />
+              </div>
+              <p class="text-[10px] text-slate-400 mt-1" id="budget-label">≈ Rp 250.000 / hari</p>
+            </div>
 
-        <div id="loading-panel" class="hidden pt-6 text-center">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Metode Penentuan Titik Awal</label>
+              <div class="flex gap-2 mb-3 bg-white/60 p-1 rounded-xl border border-slate-200">
+                <label class="flex-1 text-center cursor-pointer">
+                  <input type="radio" name="metode_lokasi" value="gps" class="peer hidden" />
+                  <div class="peer-checked:bg-teal-500 peer-checked:text-white text-slate-500 text-xs font-semibold py-2 rounded-lg transition-all">GPS</div>
+                </label>
+                <label class="flex-1 text-center cursor-pointer">
+                  <input type="radio" name="metode_lokasi" value="map" class="peer hidden" checked />
+                  <div class="peer-checked:bg-teal-500 peer-checked:text-white text-slate-500 text-xs font-semibold py-2 rounded-lg transition-all">Peta</div>
+                </label>
+              </div>
+              <div class="flex gap-2 p-3 bg-teal-50/60 rounded-xl border border-teal-100">
+                <span class="material-symbols-outlined text-teal-500 text-[18px] flex-shrink-0 mt-0.5" style="font-variation-settings:'FILL' 1">location_on</span>
+                <div class="flex-1 min-w-0">
+                  <p id="koordinat-label" class="text-xs font-semibold text-teal-800 truncate">Menunggu lokasi...</p>
+                  <p class="text-[10px] text-slate-400">Lat: <span id="lat-display">-</span> · Lng: <span id="lng-display">-</span></p>
+                </div>
+              </div>
+              <input type="hidden" id="lat" /><input type="hidden" id="lng" />
+            </div>
+
+            <div id="form-error" class="hidden text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg"></div>
+            <button type="submit" id="btn-generate"
+              class="w-full bg-gradient-to-r from-teal-600 to-blue-600 text-white font-display font-bold py-3.5 rounded-2xl shadow-lg shadow-teal-500/25 active:scale-95 transition-all flex items-center justify-center gap-2">
+              Generate Itinerary
+            </button>
+          </form>
+
+          <div id="loading-panel" class="hidden pt-6 text-center">
             <div class="spinner mx-auto mb-2"></div>
             <p class="text-xs text-slate-500">Menghitung rute optimal...</p>
+          </div>
         </div>
 
-        <div id="hasil-panel" class="hidden pt-4 space-y-3"></div>
+        <!-- Hasil (hidden awal, muncul setelah generate) -->
+        <div id="hasil-panel" class="hidden px-4 pb-6 pt-3 space-y-3"></div>
       </div>
     </section>
 
@@ -360,14 +383,45 @@
           <p style="font-weight:700;color:#7c3aed;font-size:16px;margin:0" id="bar-dest">—</p>
           <p style="color:#94a3b8;font-size:10px;margin:0">DESTINASI</p>
         </div>
-        <a id="bar-nav-btn" href="#"
+        <button onclick="mulaiNavigasi()"
           style="background:linear-gradient(135deg,#0d9488,#2563eb);color:#fff;
           padding:8px 16px;border-radius:12px;font-size:12px;font-weight:700;
-          font-family:'Plus Jakarta Sans',sans-serif;text-decoration:none;
+          font-family:'Plus Jakarta Sans',sans-serif;border:none;cursor:pointer;
           display:flex;align-items:center;gap:6px;white-space:nowrap">
           <span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:'FILL' 1">navigation</span>
           Navigasi Live
-        </a>
+        </button>
+      </div>
+
+      <!-- NAV HUD -->
+      <div id="nav-hud" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:600;box-shadow:0 -8px 40px rgba(0,0,0,.15);">
+        <div style="background:#1e40af;padding:7px 16px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="nav-pulse" style="width:8px;height:8px;background:#60a5fa;border-radius:50%;display:inline-block;animation:navPulse 1.2s ease-in-out infinite"></span>
+            <span style="color:#93c5fd;font-size:11px;font-weight:700;letter-spacing:2px;font-family:'Plus Jakarta Sans',sans-serif">NAVIGASI AKTIF</span>
+          </div>
+          <button onclick="hentikanNavigasi()" style="color:#fff;background:rgba(255,255,255,.15);border:none;padding:4px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <span class="material-symbols-outlined" style="font-size:14px">stop_circle</span> Hentikan
+          </button>
+        </div>
+        <div style="background:rgba(255,255,255,.97);backdrop-filter:blur(20px);padding:12px 16px;display:flex;align-items:center;gap:14px;border-top:1px solid rgba(0,0,0,.06);">
+          <div id="nav-panah" style="font-size:40px;min-width:48px;text-align:center;line-height:1;color:#1e40af">↑</div>
+          <div style="flex:1">
+            <p id="nav-instruksi" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#1e293b;font-size:14px;margin:0">Menghitung rute...</p>
+            <p id="nav-sub-instruksi" style="color:#64748b;font-size:12px;margin:0"></p>
+          </div>
+          <div style="text-align:right;min-width:60px">
+            <p id="nav-jarak" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#0d9488;font-size:18px;margin:0">—</p>
+            <p id="nav-waktu" style="color:#64748b;font-size:11px;margin:0">—</p>
+          </div>
+        </div>
+        <div style="background:rgba(240,249,255,.97);backdrop-filter:blur(20px);padding:8px 16px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(13,148,136,.12);">
+          <div>
+            <p id="nav-nama" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#0f766e;font-size:13px;margin:0">—</p>
+            <p id="nav-info" style="color:#94a3b8;font-size:11px;margin:0">—</p>
+          </div>
+          <div id="nav-dots" style="display:flex;gap:5px;align-items:center;"></div>
+        </div>
       </div>
     </section>
   </main>
@@ -399,7 +453,8 @@
       document.getElementById('lat').value = startLat; document.getElementById('lng').value = startLng;
       document.getElementById('lat-display').textContent = startLat; document.getElementById('lng-display').textContent = startLng;
       document.getElementById('koordinat-label').textContent = source === 'gps' ? 'GPS ditemukan ✓' : 'Titik peta terpilih ✓';
-      
+      document.getElementById('instruksi-awal').style.display = 'none';
+
       if (startMarker) map.removeLayer(startMarker);
       startMarker = L.marker([startLat, startLng]).addTo(map);
       map.setView([startLat, startLng], 13);
@@ -481,9 +536,23 @@
     }
 
     function renderHasil(data) {
-      // Sembunyikan instruksi awal
+      // Sembunyikan instruksi awal & form, tampilkan header hasil
       const instr = document.getElementById('instruksi-awal');
       if (instr) instr.style.display = 'none';
+
+      document.getElementById('wrapper-form').style.display   = 'none';
+      document.getElementById('header-form').style.display    = 'none';
+      document.getElementById('header-hasil').style.display   = 'block';
+
+      // Isi header info
+      const pref = document.getElementById('preferensi').value;
+      document.getElementById('hasil-judul').textContent =
+        `${data.duration_days} Hari · ${fmtRupiah(data.total_budget)}`;
+      document.getElementById('hasil-sub').textContent =
+        pref ? `Kategori: ${pref}` : 'Semua Kategori';
+
+      // Scroll ke atas
+      document.getElementById('panel-scroll').scrollTop = 0;
 
       const jadwal = normalizeJadwal(data.jadwal);
       const panel = document.getElementById('hasil-panel');
@@ -518,7 +587,18 @@
       panel.classList.remove('hidden');
       document.getElementById('bar-judul').textContent = `Itinerary ${data.duration_days} Hari`;
       document.getElementById('bar-dest').textContent = totalDest;
-      document.getElementById('bar-nav-btn').href = `map.html?id=${data.itinerary_id}&rute=1`;
+
+      // Simpan flat list destinasi untuk navigasi — dipakai mulaiNavigasi()
+      window._destNavCache = jadwal.flatMap(hari =>
+        hari.destinasi.map((d, i) => ({
+          name:  d.destination.name,
+          lat:   d.destination.latitude,
+          lng:   d.destination.longitude,
+          hari:  hari.hari,
+          stop:  i + 1,
+          total: hari.destinasi.length,
+        }))
+      );
     }
 
     async function renderRuteDiPeta(data) {
@@ -622,7 +702,7 @@
           total_budget:    +document.getElementById('budget').value,
           start_latitude:  startLat,
           start_longitude: startLng,
-          city_preference: document.getElementById('preferensi').value || undefined,
+          category_preference: document.getElementById('preferensi').value || undefined,
         });
         renderHasil(res.data);
         renderRuteDiPeta(res.data);
@@ -635,7 +715,145 @@
       }
     }
 
+    function resetKeForm() {
+      // Kembali ke mode form
+      document.getElementById('header-form').style.display    = 'block';
+      document.getElementById('header-hasil').style.display   = 'none';
+      document.getElementById('wrapper-form').style.display   = 'block';
+      document.getElementById('hasil-panel').classList.add('hidden');
+      document.getElementById('hasil-panel').innerHTML = '';
+      document.getElementById('panel-scroll').scrollTop = 0;
+
+      // Bersihkan peta & state
+      hapusRute();
+      window._destNavCache = null;
+      document.getElementById('route-bar').style.display = 'none';
+      document.getElementById('nav-hud').style.display   = 'none';
+      document.getElementById('instruksi-awal').style.display = 'flex';
+    }
+
     function bukaProfile() { window.location.href = 'profile.html'; }
+
+    // ══════════════════════ NAVIGASI LIVE ══════════════════════
+    let modNav=false, watchId=null, indeksNav=0;
+    let markerPosNav=null, lingkNav=null, lapisanNav=[], posKalc=null, sedangNav=false;
+    const TIBA=200, RECALC=150;
+
+    const PANAH={'depart':'↑','straight':'↑','arrive':'🏁','turn-right':'↪','turn-left':'↩','turn-slight right':'↗','turn-slight left':'↖','roundabout':'↻'};
+    function getArrow(s){const t=s?.maneuver?.type||'',m=s?.maneuver?.modifier||'';return PANAH[`${t}-${m}`]||PANAH[t]||'↑';}
+    function fmJ(m){return m>=1000?`${(m/1000).toFixed(1)} km`:`${Math.round(m)} m`;}
+    function fmW(s){const j=Math.floor(s/3600),m=Math.round((s%3600)/60);return j>0?`${j}j ${m}mnt`:`~${m} mnt`;}
+
+    function mulaiNavigasi(){
+      const list=window._destNavCache;
+      if(!list?.length) return alert('Generate itinerary dulu!');
+      if(!navigator.geolocation) return alert('Browser tidak support GPS.');
+      indeksNav=0; modNav=true; posKalc=null;
+      document.getElementById('route-bar').style.display='none';
+      document.getElementById('nav-hud').style.display='block';
+      updateNavDest(); renderNavDots();
+      navigator.geolocation.getCurrentPosition(
+        p=>{updatePosNav(p); watchId=navigator.geolocation.watchPosition(updatePosNav,errNav,{enableHighAccuracy:true,maximumAge:3000,timeout:10000});},
+        errNav,{enableHighAccuracy:true,timeout:12000}
+      );
+    }
+
+    function errNav(e){alert('GPS gagal: '+(e.message||'Izin ditolak')); hentikanNavigasi();}
+
+    function hentikanNavigasi(){
+      modNav=false;
+      if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+      if(markerPosNav){map.removeLayer(markerPosNav);markerPosNav=null;}
+      if(lingkNav){map.removeLayer(lingkNav);lingkNav=null;}
+      lapisanNav.forEach(l=>map.removeLayer(l));lapisanNav=[];
+      document.getElementById('nav-hud').style.display='none';
+      document.getElementById('route-bar').style.display='flex';
+    }
+
+    function updatePosNav(pos){
+      const{latitude:lat,longitude:lng,accuracy:acc}=pos.coords;
+      const iconP=L.divIcon({className:'',
+        html:`<div style="position:relative;width:22px;height:22px"><div style="position:absolute;inset:-8px;background:rgba(29,78,216,.2);border-radius:50%;animation:posPulse 2s ease-out infinite"></div><div style="width:22px;height:22px;background:#1d4ed8;border:3px solid #fff;border-radius:50%;position:relative;z-index:1;box-shadow:0 2px 8px rgba(29,78,216,.5)"></div></div>`,
+        iconSize:[22,22],iconAnchor:[11,11]});
+      if(!markerPosNav) markerPosNav=L.marker([lat,lng],{icon:iconP,zIndexOffset:2000}).addTo(map);
+      else markerPosNav.setLatLng([lat,lng]);
+      if(!lingkNav) lingkNav=L.circle([lat,lng],{radius:acc,color:'#1d4ed8',fillColor:'#1d4ed8',fillOpacity:.07,weight:1}).addTo(map);
+      else lingkNav.setLatLng([lat,lng]).setRadius(acc);
+      if(indeksNav>=window._destNavCache.length) return;
+      const dest=window._destNavCache[indeksNav];
+      const jarak=haversine(lat,lng,dest.lat,dest.lng)*1000;
+      if(jarak<=TIBA){tibaDi();return;}
+      document.getElementById('nav-jarak').textContent=fmJ(jarak);
+      document.getElementById('nav-waktu').textContent=fmW((jarak/1000/40)*3600);
+      map.panTo([lat,lng],{animate:true,duration:0.5});
+      const perlu=!posKalc||haversine(lat,lng,posKalc[0],posKalc[1])*1000>RECALC;
+      if(perlu&&!sedangNav){posKalc=[lat,lng];fetchNav(lat,lng);}
+    }
+
+    async function fetchNav(lat,lng){
+      if(indeksNav>=window._destNavCache.length)return;
+      sedangNav=true;
+      const d=window._destNavCache[indeksNav];
+      try{
+        const ctrl=new AbortController(); setTimeout(()=>ctrl.abort(),10000);
+        const res=await fetch(`https://router.project-osrm.org/route/v1/driving/${lng},${lat};${d.lng},${d.lat}?steps=true&overview=full&geometries=geojson`,{signal:ctrl.signal});
+        const data=await res.json();
+        if(!data.routes?.length)return;
+        const route=data.routes[0],steps=route.legs[0]?.steps||[];
+        lapisanNav.forEach(l=>map.removeLayer(l));lapisanNav=[];
+        const ll=route.geometry.coordinates.map(([lo,la])=>[la,lo]);
+        const ol=L.polyline(ll,{color:'#fff',weight:10,opacity:.7}).addTo(map);
+        const gr=L.polyline(ll,{color:'#1d4ed8',weight:6,opacity:.95}).addTo(map);
+        ol.bringToBack(); lapisanNav.push(ol,gr);
+        const step=steps.find(s=>s.distance>10)||steps[0];
+        if(step){
+          document.getElementById('nav-panah').textContent=getArrow(step);
+          document.getElementById('nav-instruksi').textContent=step.name||'Lanjut terus';
+          document.getElementById('nav-sub-instruksi').textContent=step.distance>0?`dalam ${fmJ(step.distance)}`:'';
+        }
+        document.getElementById('nav-waktu').textContent=fmW(route.duration);
+      }catch(e){}finally{sedangNav=false;}
+    }
+
+    function updateNavDest(){
+      const d=window._destNavCache[indeksNav];
+      if(!d)return;
+      document.getElementById('nav-nama').textContent=d.name;
+      document.getElementById('nav-info').textContent=`Stop ${d.stop} dari ${d.total} · Hari ${d.hari}`;
+      document.getElementById('nav-jarak').textContent='—';
+      document.getElementById('nav-waktu').textContent='—';
+      document.getElementById('nav-panah').textContent='↑';
+      document.getElementById('nav-instruksi').textContent='Menghitung rute...';
+      document.getElementById('nav-sub-instruksi').textContent='';
+      map.setView([d.lat,d.lng],14,{animate:true});
+    }
+
+    function renderNavDots(){
+      const list=window._destNavCache||[];
+      document.getElementById('nav-dots').innerHTML=list.map((_,i)=>
+        `<div style="width:${i===indeksNav?18:7}px;height:7px;border-radius:999px;background:${i<indeksNav?'#0d9488':i===indeksNav?'#1d4ed8':'#cbd5e1'};transition:all .3s"></div>`
+      ).join('');
+    }
+
+    function tibaDi(){
+      const d=window._destNavCache[indeksNav];
+      lapisanNav.forEach(l=>map.removeLayer(l));lapisanNav=[];posKalc=null;
+      const t=document.createElement('div');
+      t.style.cssText=`position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#0d9488;color:#fff;padding:12px 24px;border-radius:18px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 8px 30px rgba(13,148,136,.5);`;
+      t.textContent=`✅ Tiba di ${d.name}!`;
+      document.body.appendChild(t); setTimeout(()=>t.remove(),3000);
+      indeksNav++;
+      if(indeksNav>=window._destNavCache.length){
+        setTimeout(()=>{
+          const el=document.createElement('div');
+          el.style.cssText=`position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,#7c3aed,#1d4ed8);color:#fff;padding:28px 36px;border-radius:24px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:18px;z-index:9999;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;`;
+          el.innerHTML=`🎉 Perjalanan Selesai!<br><span style="font-size:13px;font-weight:500;opacity:.8">Semua ${window._destNavCache.length} destinasi selesai</span><br><br><button onclick="this.parentElement.remove();hentikanNavigasi()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">Selesai</button>`;
+          document.body.appendChild(el);
+        },2500);
+        return;
+      }
+      updateNavDest(); renderNavDots();
+    }
   </script>
 </body>
 

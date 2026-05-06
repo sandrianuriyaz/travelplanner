@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travel Planner</title>
+  <style>
+    body { margin:0; background:#f0f9ff; display:flex; align-items:center; justify-content:center; height:100vh; }
+    .dot { width:10px; height:10px; border-radius:50%; background:#0d9488; animation:pulse .8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
+  </style>
+</head>
+<body>
+  <div class="dot"></div>
+  <script src="js/api.js"></script>
+  <script>
+    if (auth.isLoggedIn()) {
+      window.location.replace('dashboard.html');
+    } else {
+      window.location.replace('login.html');
+    }
+  </script>
+</body>
+</html>

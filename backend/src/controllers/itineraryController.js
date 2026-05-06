@@ -235,7 +235,7 @@ function jalankanGreedy(kandidat, startLat, startLng, budgetHarian, idDikunjungi
  * }
  */
 async function generateItinerary(req, res) {
-  const { total_budget, duration_days, start_latitude, start_longitude, city_preference } = req.body;
+  const { total_budget, duration_days, start_latitude, start_longitude, city_preference, category_preference } = req.body;
 
   console.log('[generateItinerary] Payload diterima:', req.body);
   // ── Validasi input ────────────────────────────────────────────────────────
@@ -262,12 +262,19 @@ async function generateItinerary(req, res) {
 
     // ── Aturan 6.2: Tentukan kota & filter kandidat ───────────────────────
     const kotaAwal = city_preference || deteksiKotaTerdekat(semuaDestinasi, start_latitude, start_longitude);
-    const { kandidat, kotaAktif, diperluas } = filterWilayah(semuaDestinasi, kotaAwal);
+    const { kandidat: kandidatKota, kotaAktif, diperluas } = filterWilayah(semuaDestinasi, kotaAwal);
+
+    // ── Filter tambahan berdasarkan kategori jika ada ─────────────────────
+    const kandidat = category_preference
+      ? kandidatKota.filter(d => d.category === category_preference)
+      : kandidatKota;
 
     if (kandidat.length === 0) {
       return res.status(404).json({
         berhasil: false,
-        pesan   : `Tidak ada destinasi yang tersedia di kota: ${kotaAwal}.`,
+        pesan   : category_preference
+          ? `Tidak ada destinasi kategori "${category_preference}" di sekitar lokasi Anda.`
+          : `Tidak ada destinasi yang tersedia di kota: ${kotaAwal}.`,
       });
     }
 
@@ -334,6 +341,17 @@ async function generateItinerary(req, res) {
           waktu_tempuh_menit: menitPulang,
         },
         destinasi: detailDestinasi,
+      });
+    }
+
+    // ── Validasi: jangan simpan jika tidak ada destinasi sama sekali ─────
+    const totalDestinasi = jadwal.reduce((sum, h) => sum + h.destinasi.length, 0);
+    if (totalDestinasi === 0) {
+      return res.status(404).json({
+        berhasil: false,
+        pesan: category_preference
+          ? `Tidak ada destinasi kategori "${category_preference}" yang terjangkau dengan budget Rp ${total_budget.toLocaleString('id-ID')} di sekitar lokasi Anda. Coba tambah budget atau pilih kategori lain.`
+          : `Tidak ada destinasi yang terjangkau dengan budget tersebut di sekitar lokasi Anda. Coba tambah budget.`,
       });
     }
 
