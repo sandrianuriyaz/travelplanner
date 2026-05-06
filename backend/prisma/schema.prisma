@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            Int         @id @default(autoincrement())
+  username      String      @unique @db.VarChar(100)
+  email         String      @unique @db.VarChar(150)
+  password_hash String      @db.VarChar(255)
+  createdAt     DateTime    @default(now())
+  itineraries   Itinerary[]
+
+  @@map("users")
+}
+
+model Destination {
+  id                     Int               @id @default(autoincrement())
+  name                   String            @db.VarChar(200)
+  category               String            @db.VarChar(100)
+  city                   String            @db.VarChar(100) // Kota destinasi, untuk filter batasan wilayah geografis
+  latitude               Float
+  longitude              Float
+  entrance_fee           Int
+  average_duration_spent Int
+  image_url              String?           @db.VarChar(500)
+  createdAt              DateTime          @default(now())
+  itineraryDetails       ItineraryDetail[]
+
+  @@map("destinations")
+}
+
+model Itinerary {
+  id            Int               @id @default(autoincrement())
+  userId        Int
+  total_budget  Int
+  duration_days Int
+  starting_lat  Float
+  starting_lng  Float
+  preference    String?           @db.VarChar(100)
+  createdAt     DateTime          @default(now())
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  details       ItineraryDetail[]
+
+  @@map("itineraries")
+}
+
+model ItineraryDetail {
+  id             Int         @id @default(autoincrement())
+  itineraryId    Int
+  day_number     Int
+  destinationId  Int
+  order_in_day   Int
+  estimated_cost Int
+  itinerary      Itinerary   @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  destination    Destination @relation(fields: [destinationId], references: [id])
+
+  @@map("itinerary_details")
+}

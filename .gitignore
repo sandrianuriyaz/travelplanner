@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables (RAHASIA - jangan di-push!)
+.env
+.env.local
+.env.production
+backend/.env
+
+# Prisma generated
+backend/generated/
+backend/prisma/migrations/
+
+# Build output
+web/dist/
+web/input.css
+
+# Data files
+backend/prisma/tourism_data.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
