@@ -25,33 +25,44 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
   int _selectedDay = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // Trigger fetchById setelah frame pertama terbentuk
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(itineraryProvider.notifier).fetchById(widget.itineraryId);
+    });
+  }
+
+  @override
   void dispose() {
     _tabController?.dispose();
     super.dispose();
   }
 
-  // Polyline tertutup: startPoint → dest1 → dest2 → ... → startPoint (Aturan 7.1)
+  // Polyline tertutup: startPoint → dest1 → ... → startPoint (Aturan 7.1)
   List<LatLng> _buildClosedRoute(
-      ItineraryModel itinerary, List<ItineraryDetailModel> hariDetails) {
+      ItineraryModel itinerary, List<ItineraryDetailModel> details) {
     final start = LatLng(itinerary.startingLat, itinerary.startingLng);
-    final points = hariDetails
-        .map((d) => LatLng(d.destination.latitude, d.destination.longitude))
-        .toList();
+    final points =
+        details.map((d) => LatLng(d.destination.latitude, d.destination.longitude)).toList();
     return [start, ...points, start];
   }
 
   @override
   Widget build(BuildContext context) {
-    final detailAsync = ref.watch(itineraryDetailProvider(widget.itineraryId));
+    final state = ref.watch(itineraryProvider);
 
-    return detailAsync.when(
-      loading: () => _buildSkeleton(context),
-      error: (e, _) => _buildError(context, e.toString()),
-      data: (itinerary) => _buildContent(context, itinerary),
-    );
+    if (state.isLoading || state.itinerary == null) {
+      return _buildSkeleton(context, state.error);
+    }
+    if (state.error != null && state.itinerary == null) {
+      return _buildError(context, state.error!);
+    }
+    return _buildContent(context, state.itinerary!);
   }
 
-  Widget _buildSkeleton(BuildContext context) {
+  Widget _buildSkeleton(BuildContext context, String? error) {
+    if (error != null) return _buildError(context, error);
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Perjalanan')),
       body: Shimmer.fromColors(
@@ -96,8 +107,9 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
               ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () =>
-                    ref.invalidate(itineraryDetailProvider(widget.itineraryId)),
+                onPressed: () => ref
+                    .read(itineraryProvider.notifier)
+                    .fetchById(widget.itineraryId),
                 child: const Text('Coba lagi'),
               ),
               const SizedBox(height: 8),
@@ -116,16 +128,18 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
     final grouped = itinerary.groupedByDay;
     final sortedDays = grouped.keys.toList()..sort();
 
-    _tabController ??= TabController(length: sortedDays.length, vsync: this)
-      ..addListener(() {
+    _tabController ??= TabController(
+      length: sortedDays.length.clamp(1, 99),
+      vsync: this,
+    )..addListener(() {
         if (!_tabController!.indexIsChanging) {
           setState(() => _selectedDay = _tabController!.index);
         }
       });
 
-    final currentDayDetails = grouped[sortedDays[_selectedDay]] ?? [];
+    final currentDetails = grouped[sortedDays[_selectedDay]] ?? [];
     final startPoint = LatLng(itinerary.startingLat, itinerary.startingLng);
-    final routePoints = _buildClosedRoute(itinerary, currentDayDetails);
+    final routePoints = _buildClosedRoute(itinerary, currentDetails);
 
     final allLat = routePoints.map((p) => p.latitude);
     final allLng = routePoints.map((p) => p.longitude);
@@ -214,7 +228,6 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
                           ),
                           MarkerLayer(
                             markers: [
-                              // Titik awal
                               Marker(
                                 point: startPoint,
                                 width: 40,
@@ -230,7 +243,6 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
                                       color: Colors.white, size: 20),
                                 ),
                               ),
-                              // Destinasi bernomor
                               ...destPoints.asMap().entries.map((e) => Marker(
                                     point: e.value,
                                     width: 36,
@@ -268,10 +280,8 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
                           : ListView.builder(
                               padding: const EdgeInsets.all(12),
                               itemCount: hariDetails.length,
-                              itemBuilder: (context, idx) {
-                                return _DestinasiCard(
-                                    detail: hariDetails[idx]);
-                              },
+                              itemBuilder: (_, idx) =>
+                                  _DestinasiCard(detail: hariDetails[idx]),
                             ),
                     ),
                   ],
@@ -290,11 +300,7 @@ class _InfoChip extends StatelessWidget {
   final String value;
   final IconData icon;
 
-  const _InfoChip({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+  const _InfoChip({required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -322,7 +328,6 @@ class _DestinasiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dest = detail.destination;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: Padding(

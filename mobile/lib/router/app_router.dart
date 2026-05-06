@@ -17,7 +17,7 @@ class RouterNotifier extends ChangeNotifier {
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
-    final isLoggedIn = _ref.read(authProvider).isAuthenticated;
+    final isLoggedIn = _ref.read(authProvider).isLoggedIn;
     final isAuthRoute =
         state.matchedLocation == '/login' ||
         state.matchedLocation == '/register';

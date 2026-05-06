@@ -2,75 +2,74 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
+// ─── State ────────────────────────────────────────────────────────────────────
+
 class AuthState {
-  final UserModel? user;
-  final String? token;
   final bool isLoading;
+  final UserModel? user;
   final String? error;
+  final bool isLoggedIn;
 
   const AuthState({
-    this.user,
-    this.token,
     this.isLoading = false,
+    this.user,
     this.error,
+    this.isLoggedIn = false,
   });
 
-  bool get isAuthenticated => token != null && token!.isNotEmpty;
-
   AuthState copyWith({
-    UserModel? user,
-    String? token,
     bool? isLoading,
+    UserModel? user,
     String? error,
+    bool? isLoggedIn,
     bool clearError = false,
-    bool clearSession = false,
+    bool clearUser = false,
   }) {
     return AuthState(
-      user: clearSession ? null : (user ?? this.user),
-      token: clearSession ? null : (token ?? this.token),
       isLoading: isLoading ?? this.isLoading,
+      user: clearUser ? null : (user ?? this.user),
       error: clearError ? null : (error ?? this.error),
+      isLoggedIn: isLoggedIn ?? this.isLoggedIn,
     );
   }
 }
 
-class AuthNotifier extends Notifier<AuthState> {
-  late final AuthService _service;
+// ─── Notifier ─────────────────────────────────────────────────────────────────
 
-  @override
-  AuthState build() {
-    _service = ref.read(authServiceProvider);
-    return const AuthState();
+class AuthNotifier extends StateNotifier<AuthState> {
+  final AuthService _service;
+
+  AuthNotifier(this._service) : super(const AuthState());
+
+  /// Cek token tersimpan saat app pertama dibuka → update isLoggedIn.
+  Future<void> checkAuth() async {
+    final loggedIn = await _service.isLoggedIn();
+    state = state.copyWith(isLoggedIn: loggedIn, clearError: true);
   }
 
-  /// Baca token tersimpan saat app pertama kali dibuka.
-  Future<void> init() async {
-    final token = await _service.getSavedToken();
-    if (token != null && token.isNotEmpty) {
-      state = state.copyWith(token: token);
-    }
-  }
-
-  /// Login: return true jika berhasil, false jika gagal (error tersimpan di state).
+  /// Login: set loading → call service → update state.
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final user = await _service.login(email, password);
-      final token = await _service.getSavedToken() ?? '';
       state = state.copyWith(
-        user: user,
-        token: token,
         isLoading: false,
+        user: user,
+        isLoggedIn: true,
         clearError: true,
       );
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+        isLoggedIn: false,
+      );
       return false;
     }
   }
 
-  /// Register: return true jika berhasil.
+  /// Register: set loading → call service → update state.
   Future<bool> register(String username, String email, String password) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
@@ -83,6 +82,7 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  /// Logout: call service → reset ke state awal.
   Future<void> logout() async {
     await _service.logout();
     state = const AuthState();
@@ -93,4 +93,8 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 }
 
-final authProvider = NotifierProvider<AuthNotifier, AuthState>(() => AuthNotifier());
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+  return AuthNotifier(ref.read(authServiceProvider));
+});

@@ -1,40 +1,47 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/itinerary_model.dart';
-import '../models/riwayat_model.dart';
 import '../services/itinerary_service.dart';
 
-// ─── State generate itinerary ────────────────────────────────────────────────
+// ─── State ────────────────────────────────────────────────────────────────────
 
-class GenerateState {
-  final ItineraryModel? data;
+class ItineraryState {
   final bool isLoading;
+  final ItineraryModel? itinerary;
+  final List<ItineraryModel> itineraries;
   final String? error;
 
-  const GenerateState({this.data, this.isLoading = false, this.error});
+  const ItineraryState({
+    this.isLoading = false,
+    this.itinerary,
+    this.itineraries = const [],
+    this.error,
+  });
 
-  GenerateState copyWith({
-    ItineraryModel? data,
+  ItineraryState copyWith({
     bool? isLoading,
+    ItineraryModel? itinerary,
+    List<ItineraryModel>? itineraries,
     String? error,
     bool clearError = false,
+    bool clearItinerary = false,
   }) {
-    return GenerateState(
-      data: data ?? this.data,
+    return ItineraryState(
       isLoading: isLoading ?? this.isLoading,
+      itinerary: clearItinerary ? null : (itinerary ?? this.itinerary),
+      itineraries: itineraries ?? this.itineraries,
       error: clearError ? null : (error ?? this.error),
     );
   }
 }
 
-class GenerateNotifier extends Notifier<GenerateState> {
-  late final ItineraryService _service;
+// ─── Notifier ─────────────────────────────────────────────────────────────────
 
-  @override
-  GenerateState build() {
-    _service = ref.read(itineraryServiceProvider);
-    return const GenerateState();
-  }
+class ItineraryNotifier extends StateNotifier<ItineraryState> {
+  final ItineraryService _service;
 
+  ItineraryNotifier(this._service) : super(const ItineraryState());
+
+  /// Generate itinerary baru; return hasilnya agar screen bisa navigasi.
   Future<ItineraryModel?> generate({
     required int duration,
     required int budget,
@@ -43,7 +50,8 @@ class GenerateNotifier extends Notifier<GenerateState> {
     required String city,
     required List<String> preferences,
   }) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+        isLoading: true, clearError: true, clearItinerary: true);
     try {
       final result = await _service.generateItinerary(
         duration: duration,
@@ -53,7 +61,7 @@ class GenerateNotifier extends Notifier<GenerateState> {
         city: city,
         preferences: preferences,
       );
-      state = state.copyWith(data: result, isLoading: false);
+      state = state.copyWith(isLoading: false, itinerary: result);
       return result;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -61,28 +69,42 @@ class GenerateNotifier extends Notifier<GenerateState> {
     }
   }
 
-  void reset() {
-    state = const GenerateState();
+  /// Ambil detail satu itinerary; hasilnya masuk ke state.itinerary.
+  Future<void> fetchById(int id) async {
+    state = state.copyWith(
+        isLoading: true, clearError: true, clearItinerary: true);
+    try {
+      final result = await _service.getItinerary(id);
+      state = state.copyWith(isLoading: false, itinerary: result);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  /// Ambil semua itinerary milik user; hasilnya masuk ke state.itineraries.
+  Future<void> fetchUserItineraries() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final results = await _service.getUserItineraries();
+      state = state.copyWith(isLoading: false, itineraries: results);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  void clearItinerary() {
+    state = state.copyWith(clearItinerary: true, clearError: true);
   }
 }
 
-final generateProvider =
-    NotifierProvider<GenerateNotifier, GenerateState>(() => GenerateNotifier());
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
-// ─── Provider riwayat (preview list dengan RiwayatItemModel) ─────────────────
-
-final riwayatProvider = FutureProvider<List<RiwayatItemModel>>((ref) async {
-  return ref.read(itineraryServiceProvider).getRiwayat();
+final itineraryProvider =
+    StateNotifierProvider<ItineraryNotifier, ItineraryState>((ref) {
+  return ItineraryNotifier(ref.read(itineraryServiceProvider));
 });
 
-// ─── Provider detail itinerary (ItineraryModel lengkap per ID) ───────────────
-
-final itineraryDetailProvider =
-    FutureProvider.family<ItineraryModel, int>((ref, id) async {
-  return ref.read(itineraryServiceProvider).getItinerary(id);
-});
-
-// ─── Provider daftar kota untuk dropdown form ─────────────────────────────────
+// ─── Provider kota (tetap FutureProvider — bukan bagian dari ItineraryState) ──
 
 final daftarKotaProvider = FutureProvider<List<String>>((ref) async {
   return ref.read(itineraryServiceProvider).getDaftarKota();

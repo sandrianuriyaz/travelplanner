@@ -78,7 +78,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen>
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            ref.read(generateProvider.notifier).reset();
+            ref.read(itineraryProvider.notifier).clearItinerary();
             context.go('/home');
           },
         ),

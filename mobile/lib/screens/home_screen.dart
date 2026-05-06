@@ -17,6 +17,15 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Muat daftar itinerary saat HomeScreen pertama kali dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(itineraryProvider.notifier).fetchUserItineraries();
+    });
+  }
+
   void navigateTo(int index) {
     setState(() => _selectedIndex = index);
   }
@@ -66,7 +75,7 @@ class _BerandaTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final colorScheme = Theme.of(context).colorScheme;
-    final riwayatAsync = ref.watch(riwayatProvider);
+    final itineraryState = ref.watch(itineraryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -246,75 +255,68 @@ class _BerandaTab extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            riwayatAsync.when(
-              loading: () => _ShimmerRiwayat(),
-              error: (e, _) => Center(
-                child: Text(
-                  'Gagal memuat riwayat',
-                  style: TextStyle(color: colorScheme.error),
-                ),
-              ),
-              data: (list) {
-                if (list.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(Icons.luggage_outlined,
-                            size: 48, color: colorScheme.onSurfaceVariant),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Belum ada rencana perjalanan.\nBuat rencana pertama Anda!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return Column(
-                  children: list.take(3).map((item) {
-                    final preview = item.details.isNotEmpty
-                        ? item.details.first.destination.name
-                        : 'Tidak ada destinasi';
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: colorScheme.primaryContainer,
-                          child: Text(
-                            '${item.durationDays}H',
-                            style: TextStyle(
-                              color: colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          item.preference ?? 'Perjalanan',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(preview),
-                        trailing: Text(
-                          formatRupiah(item.totalBudget),
+            Builder(builder: (_) {
+              if (itineraryState.isLoading) return _ShimmerRiwayat();
+              final list = itineraryState.itineraries;
+              if (list.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.luggage_outlined,
+                          size: 48, color: colorScheme.onSurfaceVariant),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Belum ada rencana perjalanan.\nBuat rencana pertama Anda!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return Column(
+                children: list.take(3).map((item) {
+                  final preview = item.details.isNotEmpty
+                      ? item.details.first.destination.name
+                      : 'Tidak ada destinasi';
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: colorScheme.primaryContainer,
+                        child: Text(
+                          '${item.durationDays}H',
                           style: TextStyle(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
                         ),
-                        onTap: () => context.push('/detail/${item.id}'),
                       ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
+                      title: Text(
+                        item.preference ?? 'Perjalanan',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(preview),
+                      trailing: Text(
+                        formatRupiah(item.totalBudget),
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      onTap: () => context.push('/detail/${item.id}'),
+                    ),
+                  );
+                }).toList(),
+              );
+            }),
           ],
         ),
       ),
@@ -440,25 +442,24 @@ class _PlannerTabState extends ConsumerState<_PlannerTab> {
       return;
     }
 
-    final result = await ref.read(generateProvider.notifier).generate(
+    final result = await ref.read(itineraryProvider.notifier).generate(
           duration: _durationDays,
           budget: budget,
           startLat: lat,
           startLng: lng,
           city: _selectedKota ?? '',
-          preferences:
-              _selectedKategori != null ? [_selectedKategori!] : [],
+          preferences: _selectedKategori != null ? [_selectedKategori!] : [],
         );
 
     if (result != null && mounted) {
-      ref.invalidate(riwayatProvider);
+      ref.read(itineraryProvider.notifier).fetchUserItineraries();
       context.push('/result', extra: result);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final generateState = ref.watch(generateProvider);
+    final generateState = ref.watch(itineraryProvider);
     final kotaAsync = ref.watch(daftarKotaProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -712,13 +713,13 @@ class _RiwayatTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final riwayatAsync = ref.watch(riwayatProvider);
+    final state = ref.watch(itineraryProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Riwayat Perjalanan')),
-      body: riwayatAsync.when(
-        loading: () => ListView.builder(
+    if (state.isLoading && state.itineraries.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Riwayat Perjalanan')),
+        body: ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: 5,
           itemBuilder: (_, __) => Shimmer.fromColors(
@@ -734,57 +735,69 @@ class _RiwayatTab extends ConsumerWidget {
             ),
           ),
         ),
-        error: (e, _) => Center(
+      );
+    }
+
+    if (state.error != null && state.itineraries.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Riwayat Perjalanan')),
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.cloud_off, size: 64, color: colorScheme.error),
               const SizedBox(height: 16),
               Text(
-                'Gagal memuat riwayat.\n$e',
+                'Gagal memuat riwayat.\n${state.error}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colorScheme.error),
               ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => ref.invalidate(riwayatProvider),
+                onPressed: () =>
+                    ref.read(itineraryProvider.notifier).fetchUserItineraries(),
                 child: const Text('Coba lagi'),
               ),
             ],
           ),
         ),
-        data: (list) {
-          if (list.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.luggage_outlined,
-                      size: 80, color: colorScheme.onSurfaceVariant),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Belum ada riwayat perjalanan',
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+      );
+    }
 
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(riwayatProvider),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              itemBuilder: (context, index) {
-                final item = list[index];
-                final destinations = item.details
-                    .map((d) => d.destination.name)
-                    .take(2)
-                    .join(', ');
+    final list = state.itineraries;
+
+    final Widget body;
+    if (list.isEmpty) {
+      body = Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.luggage_outlined,
+                size: 80, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: 16),
+            Text(
+              'Belum ada riwayat perjalanan',
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      body = RefreshIndicator(
+        onRefresh: () async =>
+            ref.read(itineraryProvider.notifier).fetchUserItineraries(),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: list.length,
+            itemBuilder: (context, index) {
+              final item = list[index];
+              final destinations = item.details
+                  .map((d) => d.destination.name)
+                  .take(2)
+                  .join(', ');
 
                 return Dismissible(
                   key: Key('riwayat-${item.id}'),
@@ -816,7 +829,7 @@ class _RiwayatTab extends ConsumerWidget {
                       await ref
                           .read(itineraryServiceProvider)
                           .deleteItinerary(item.id);
-                      ref.invalidate(riwayatProvider);
+                      ref.read(itineraryProvider.notifier).fetchUserItineraries();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -826,7 +839,7 @@ class _RiwayatTab extends ConsumerWidget {
                         );
                       }
                     } catch (e) {
-                      ref.invalidate(riwayatProvider);
+                      ref.read(itineraryProvider.notifier).fetchUserItineraries();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -910,7 +923,7 @@ class _RiwayatTab extends ConsumerWidget {
                                   ),
                                 ),
                                 Text(
-                                  formatTanggal(item.createdAt),
+                                  formatTanggal(item.createdAt.toIso8601String()),
                                   style: TextStyle(
                                     color: colorScheme.onSurfaceVariant,
                                     fontSize: 12,
@@ -927,8 +940,11 @@ class _RiwayatTab extends ConsumerWidget {
               },
             ),
           );
-        },
-      ),
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Riwayat Perjalanan')),
+      body: body,
     );
   }
 }

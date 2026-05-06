@@ -18,7 +18,7 @@ class TravelPlannerApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    ref.read(authProvider.notifier).init();
+    ref.read(authProvider.notifier).checkAuth();
 
     return MaterialApp.router(
       title: 'Travel Planner',
