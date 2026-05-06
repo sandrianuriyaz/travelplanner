@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../models/itinerary_generated_model.dart';
+import '../models/itinerary_model.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
@@ -19,7 +19,8 @@ class RouterNotifier extends ChangeNotifier {
   String? redirect(BuildContext context, GoRouterState state) {
     final isLoggedIn = _ref.read(authProvider).isAuthenticated;
     final isAuthRoute =
-        state.matchedLocation == '/login' || state.matchedLocation == '/register';
+        state.matchedLocation == '/login' ||
+        state.matchedLocation == '/register';
 
     if (!isLoggedIn && !isAuthRoute) return '/login';
     if (isLoggedIn && isAuthRoute) return '/home';
@@ -52,7 +53,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/result',
         builder: (context, state) {
-          final itinerary = state.extra as ItineraryGeneratedModel;
+          final itinerary = state.extra as ItineraryModel;
           return ResultScreen(itinerary: itinerary);
         },
       ),

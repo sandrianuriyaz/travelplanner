@@ -441,12 +441,13 @@ class _PlannerTabState extends ConsumerState<_PlannerTab> {
     }
 
     final result = await ref.read(generateProvider.notifier).generate(
-          totalBudget: budget,
-          durationDays: _durationDays,
-          startLatitude: lat,
-          startLongitude: lng,
-          cityPreference: _selectedKota,
-          categoryPreference: _selectedKategori,
+          duration: _durationDays,
+          budget: budget,
+          startLat: lat,
+          startLng: lng,
+          city: _selectedKota ?? '',
+          preferences:
+              _selectedKategori != null ? [_selectedKategori!] : [],
         );
 
     if (result != null && mounted) {

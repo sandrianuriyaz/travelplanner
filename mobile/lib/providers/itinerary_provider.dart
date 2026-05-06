@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/itinerary_generated_model.dart';
 import '../models/itinerary_model.dart';
 import '../models/riwayat_model.dart';
 import '../services/itinerary_service.dart';
@@ -7,14 +6,14 @@ import '../services/itinerary_service.dart';
 // ─── State generate itinerary ────────────────────────────────────────────────
 
 class GenerateState {
-  final ItineraryGeneratedModel? data;
+  final ItineraryModel? data;
   final bool isLoading;
   final String? error;
 
   const GenerateState({this.data, this.isLoading = false, this.error});
 
   GenerateState copyWith({
-    ItineraryGeneratedModel? data,
+    ItineraryModel? data,
     bool? isLoading,
     String? error,
     bool clearError = false,
@@ -36,23 +35,23 @@ class GenerateNotifier extends Notifier<GenerateState> {
     return const GenerateState();
   }
 
-  Future<ItineraryGeneratedModel?> generate({
-    required int totalBudget,
-    required int durationDays,
-    required double startLatitude,
-    required double startLongitude,
-    String? cityPreference,
-    String? categoryPreference,
+  Future<ItineraryModel?> generate({
+    required int duration,
+    required int budget,
+    required double startLat,
+    required double startLng,
+    required String city,
+    required List<String> preferences,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final result = await _service.generateItinerary(
-        totalBudget: totalBudget,
-        durationDays: durationDays,
-        startLatitude: startLatitude,
-        startLongitude: startLongitude,
-        cityPreference: cityPreference,
-        categoryPreference: categoryPreference,
+        duration: duration,
+        budget: budget,
+        startLat: startLat,
+        startLng: startLng,
+        city: city,
+        preferences: preferences,
       );
       state = state.copyWith(data: result, isLoading: false);
       return result;
@@ -70,24 +69,21 @@ class GenerateNotifier extends Notifier<GenerateState> {
 final generateProvider =
     NotifierProvider<GenerateNotifier, GenerateState>(() => GenerateNotifier());
 
-// ─── Provider riwayat (preview list) ─────────────────────────────────────────
+// ─── Provider riwayat (preview list dengan RiwayatItemModel) ─────────────────
 
 final riwayatProvider = FutureProvider<List<RiwayatItemModel>>((ref) async {
-  final service = ref.read(itineraryServiceProvider);
-  return service.getRiwayat();
+  return ref.read(itineraryServiceProvider).getRiwayat();
 });
 
-// ─── Provider detail itinerary (per ID) — mengembalikan ItineraryModel ───────
+// ─── Provider detail itinerary (ItineraryModel lengkap per ID) ───────────────
 
 final itineraryDetailProvider =
     FutureProvider.family<ItineraryModel, int>((ref, id) async {
-  final service = ref.read(itineraryServiceProvider);
-  return service.getItineraryById(id);
+  return ref.read(itineraryServiceProvider).getItinerary(id);
 });
 
 // ─── Provider daftar kota untuk dropdown form ─────────────────────────────────
 
 final daftarKotaProvider = FutureProvider<List<String>>((ref) async {
-  final service = ref.read(itineraryServiceProvider);
-  return service.getDaftarKota();
+  return ref.read(itineraryServiceProvider).getDaftarKota();
 });

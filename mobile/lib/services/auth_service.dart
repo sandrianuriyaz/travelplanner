@@ -5,65 +5,63 @@ import '../core/constants/api_constants.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
 
-class AuthResult {
-  final bool berhasil;
-  final String pesan;
-  final UserModel? user;
-  final String? token;
-
-  const AuthResult({
-    required this.berhasil,
-    required this.pesan,
-    this.user,
-    this.token,
-  });
-}
-
 class AuthService {
-  final Dio _dio;
+  final ApiService _api;
 
-  AuthService(this._dio);
+  AuthService(this._api);
 
-  Future<AuthResult> login(String email, String password) async {
+  /// Login → simpan token ke SharedPreferences → return UserModel.
+  /// Lempar String pesan error jika gagal.
+  Future<UserModel> login(String email, String password) async {
     try {
-      final response = await _dio.post(ApiConstants.login, data: {
+      final response = await _api.post(ApiConstants.login, {
         'email': email,
         'password': password,
       });
-      final data = response.data as Map<String, dynamic>;
-      final user = UserModel.fromJson(data['data'] as Map<String, dynamic>);
-      final token = data['token'] as String;
+      final body = response.data as Map<String, dynamic>;
+      final user = UserModel.fromJson(body['data'] as Map<String, dynamic>);
+      final token = body['token'] as String;
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(ApiConstants.tokenKey, token);
 
-      return AuthResult(berhasil: true, pesan: 'Login berhasil.', user: user, token: token);
+      return user;
     } on DioException catch (e) {
-      final pesan = _pesanError(e, 'Login gagal. Periksa email dan password Anda.');
-      return AuthResult(berhasil: false, pesan: pesan);
+      throw _pesanError(e, 'Login gagal. Periksa email dan password Anda.');
     }
   }
 
-  Future<AuthResult> register(String username, String email, String password) async {
+  /// Register → lempar String pesan error jika gagal.
+  Future<void> register(
+    String username,
+    String email,
+    String password,
+  ) async {
     try {
-      final response = await _dio.post(ApiConstants.register, data: {
+      await _api.post(ApiConstants.register, {
         'username': username,
         'email': email,
         'password': password,
       });
-      final data = response.data as Map<String, dynamic>;
-      return AuthResult(berhasil: true, pesan: data['pesan'] as String? ?? 'Registrasi berhasil.');
     } on DioException catch (e) {
-      final pesan = _pesanError(e, 'Registrasi gagal. Coba lagi nanti.');
-      return AuthResult(berhasil: false, pesan: pesan);
+      throw _pesanError(e, 'Registrasi gagal. Coba lagi nanti.');
     }
   }
 
+  /// Hapus token dari SharedPreferences.
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(ApiConstants.tokenKey);
   }
 
+  /// Kembalikan true jika token ada dan tidak kosong.
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(ApiConstants.tokenKey);
+    return token != null && token.isNotEmpty;
+  }
+
+  /// Kembalikan token tersimpan (null jika belum login).
   Future<String?> getSavedToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(ApiConstants.tokenKey);
@@ -86,5 +84,5 @@ class AuthService {
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService(ref.read(dioProvider));
+  return AuthService(ref.read(apiServiceProvider));
 });
