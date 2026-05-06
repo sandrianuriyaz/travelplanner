@@ -2,62 +2,288 @@
 **Status Proyek**: Project Sistem Informasi (UAS)
 
 ## 1. PERAN DAN TUJUAN AI
-Kamu adalah *Senior Full-Stack & Mobile Developer* yang akan membantu pengembang utama dalam membangun aplikasi "Travel Planner" secara *end-to-end*. Aplikasi ini dikembangkan untuk dua platform: **Website** dan **Android**, yang keduanya saling berbagi *database* dan logika *backend* (API) yang sama.
+Kamu adalah *Senior Full-Stack & Mobile Developer* yang akan membantu pengembang utama dalam membangun aplikasi "Travel Planner" secara *end-to-end*. Aplikasi ini dikembangkan untuk dua platform: **Website** dan **Android/iOS (Flutter)**, yang keduanya saling berbagi *database* dan logika *backend* (API) yang sama.
 
 Tujuan utama aplikasi ini adalah merancang jadwal perjalanan (*itinerary*) harian secara otomatis menggunakan algoritma pencarian rute, memvisualisasikannya ke dalam peta interaktif, dan menyajikannya secara seragam di layar *browser* maupun *smartphone*.
 
+> ✅ **Status**: Backend (Node.js + Express + Prisma) dan Frontend Web sudah selesai dibangun. Tahap aktif saat ini adalah **Frontend Mobile (Flutter)**.
+
+---
+
 ## 2. ARSITEKTUR & TUMPUKAN TEKNOLOGI (TECH STACK)
-Sistem harus dibangun menggunakan arsitektur **API-First (RESTful API)**:
-- **Back-End (API Server)**: Node.js dengan Express.js. Wajib mengembalikan respons dalam format JSON.
-- **Sistem Basis Data**: MySQL yang dikelola menggunakan **Prisma ORM**.
-- **Otentikasi**: JSON Web Token (JWT) untuk manajemen sesi *stateless*.
-- **Front-End (Web)**: HTML/Vanilla JS atau kerangka kerja ringan dengan Tailwind CSS (melakukan *fetch* data ke API).
-- **Front-End (Android)**: React Native / Expo untuk mempercepat integrasi, menggunakan *fetch/axios* ke API.
-- **Integrasi Peta**: Leaflet.js (Web) dan React Native Maps (Android).
+Sistem dibangun menggunakan arsitektur **API-First (RESTful API)**:
+
+| Layer | Teknologi | Status |
+|---|---|---|
+| Back-End (API Server) | Node.js + Express.js + JSON response | ✅ Selesai |
+| Sistem Basis Data | MySQL dikelola dengan **Prisma ORM** | ✅ Selesai |
+| Otentikasi | JSON Web Token (JWT) stateless | ✅ Selesai |
+| Front-End Web | HTML/Vanilla JS + Tailwind CSS + Leaflet.js | ✅ Selesai |
+| **Front-End Mobile** | **Flutter + Dart** | 🔄 Aktif |
+| Integrasi Peta Mobile | **flutter_map** (berbasis Leaflet, gratis) | 🔄 Aktif |
+| Testing Mobile | **Xcode Simulator** (iOS) + Android Emulator | 🔄 Aktif |
+
+---
 
 ## 3. LOGIKA BISNIS & FITUR UTAMA (REST API ENDPOINTS)
-Pastikan API yang kamu buat mendukung alur kerja berikut:
+API yang sudah ada dikonsumsi oleh Flutter via Dio:
 
-1. **Input Pengguna (Endpoint POST /api/itinerary/generate)**:
-   - Menerima *payload*: Durasi liburan, Total anggaran (*budget*), Titik awal (koordinat penginapan), dan Preferensi wisata.
+1. **POST /api/auth/register** — Registrasi pengguna baru
+2. **POST /api/auth/login** — Login, mengembalikan JWT token
+3. **POST /api/itinerary/generate** — Generate itinerary otomatis
+   - Payload: `duration`, `budget`, `start_lat`, `start_lng`, `preferences`, `city`
+4. **GET /api/itinerary/:id** — Ambil detail itinerary (JSON per hari)
+5. **GET /api/destinations** — Daftar semua destinasi
+6. **GET /api/itinerary/user** — Riwayat itinerary milik pengguna (butuh JWT header)
 
-2. **Mesin Rekomendasi (Logika di Backend)**:
-   - Terapkan **Algoritma Greedy** pada *controller* Node.js untuk melakukan pencarian rute.
-   - *Fungsi Objektif*: Memilih destinasi secara iteratif berdasarkan jarak terdekat dari titik sebelumnya menggunakan formula *Haversine*, dengan batasan sisa *budget* harian (Harga tiket + Estimasi transport + Makan).
+---
 
-3. **Output Itinerary (Endpoint GET /api/itinerary/:id)**:
-   - Mengembalikan data JSON berisi jadwal terstruktur per hari, dengan relasi yang diambil (*include*) melalui kueri Prisma.
+## 4. STRUKTUR BASIS DATA (PRISMA SCHEMA) — REFERENSI
+```prisma
+model User {
+  id            Int         @id @default(autoincrement())
+  username      String      @unique
+  email         String      @unique
+  password_hash String
+  itineraries   Itinerary[]
+}
 
-## 4. STRUKTUR BASIS DATA (PRISMA SCHEMA)
-Gunakan file `schema.prisma` untuk mendefinisikan model basis data. Rancang model dengan relasi yang tepat, kurang lebih seperti berikut:
-- **User**: `id`, `username`, `email`, `password_hash`, relasi `One-to-Many` ke `Itinerary`.
-- **Destination**: `id`, `name`, `category`, `latitude` (Float), `longitude` (Float), `entrance_fee` (Int), `average_duration_spent` (Int), `image_url`.
-- **Itinerary**: `id`, `userId`, `total_budget`, `duration_days`, `createdAt`, relasi `One-to-Many` ke `ItineraryDetail`.
-- **ItineraryDetail**: `id`, `itineraryId`, `day_number`, `destinationId`, `order_in_day`, `estimated_cost`.
+model Destination {
+  id                     Int               @id @default(autoincrement())
+  name                   String
+  category               String
+  city                   String
+  latitude               Float
+  longitude              Float
+  entrance_fee           Int
+  average_duration_spent Int
+  image_url              String
+  itineraryDetails       ItineraryDetail[]
+}
 
-## 5. ATURAN VIBE CODING (GUIDELINES)
-- **Struktur Folder (Monorepo)**: Pisahkan proyek menjadi direktori `/backend`, `/web`, dan `/android`.
-- **Alur Kerja Prisma**: 
-  - Mulai dengan `npx prisma init` di dalam folder backend.
-  - Definisikan `schema.prisma`.
-  - Jalankan `npx prisma migrate dev` untuk membangun tabel di MySQL.
-  - Gunakan `Prisma Client` di dalam *controller* Express untuk semua operasi CRUD (jangan gunakan raw SQL kecuali sangat mendesak).
-- **Data Dummy (Seeding)**: Buat file `prisma/seed.js` untuk memasukkan 10-15 destinasi wisata riil di sekitar Tasikmalaya/Bandung lengkap dengan koordinatnya. Eksekusi file ini menggunakan perintah `npx prisma db seed` agar basis data siap untuk pengujian algoritma.
-- **CORS & Middleware**: Pastikan pengaturan CORS di Express diaktifkan untuk melayani origin Web dan Android.
-- **Bahasa Pengantar**: Gunakan Bahasa Indonesia untuk penamaan respons API, pesan *error*, dan dokumentasi kode.
+model Itinerary {
+  id            Int               @id @default(autoincrement())
+  userId        Int
+  total_budget  Int
+  duration_days Int
+  createdAt     DateTime          @default(now())
+  user          User              @relation(fields: [userId], references: [id])
+  details       ItineraryDetail[]
+}
 
-## 6. ATURAN LOGIKA TAMBAHAN (WAJIB DITERAPKAN)
-Dua aturan berikut adalah **syarat utama sistem** yang harus diimplementasikan di semua lapisan (backend, web, dan android):
+model ItineraryDetail {
+  id             Int         @id @default(autoincrement())
+  itineraryId    Int
+  day_number     Int
+  destinationId  Int
+  order_in_day   Int
+  estimated_cost Int
+  itinerary      Itinerary   @relation(fields: [itineraryId], references: [id])
+  destination    Destination @relation(fields: [destinationId], references: [id])
+}
+```
 
-### 6.1 Rute Siklus Tertutup (Round-Trip)
-- Algoritma Greedy **WAJIB** menyusun jalur yang dimulai dari titik awal (koordinat penginapan/lokasi saat ini yang diinputkan pengguna).
-- Setelah mengunjungi semua destinasi yang terpilih dalam satu hari, rute **WAJIB** diakhiri dengan kembali ke titik awal tersebut.
-- Saat menghitung `estimated_cost` transport harian, biaya transport pulang dari destinasi terakhir ke titik awal **harus ikut diperhitungkan**.
-- Visualisasi di peta (Leaflet.js / React Native Maps) **harus membentuk *polyline* tertutup** yang kembali menyambung ke titik awal, bukan berhenti di destinasi terakhir.
+---
 
-### 6.2 Batasan Wilayah Geografis (Geographic Boundary Filter)
-- Sebelum algoritma Greedy berjalan, lakukan **pra-filter** pada daftar destinasi yang tersedia.
-- Hanya destinasi yang berada di **kota yang sama** dengan titik awal (berdasarkan kolom `city` pada model `Destination`) yang boleh masuk ke dalam kandidat rute.
-- Jika jumlah destinasi di kota yang sama tidak mencukupi (misal < 3), sistem boleh memperluas kandidat ke **kota-kota yang berbatasan langsung** (didefinisikan di konfigurasi backend).
-- Tujuan aturan ini adalah memastikan perjalanan harian tetap **realistis secara geografis** dan tidak menghabiskan waktu signifikan untuk perjalanan antar-kota.
-- Model `Destination` di `schema.prisma` **wajib memiliki kolom `city` (String)** untuk mendukung filter ini.
+## 5. STRUKTUR FOLDER (MONOREPO)
+```
+travel-planner/
+├── backend/          ← Node.js + Express + Prisma (✅ Selesai)
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── seed.js
+│   ├── controllers/
+│   ├── routes/
+│   └── index.js
+├── web/              ← HTML + Tailwind + Leaflet.js (✅ Selesai)
+│   ├── index.html
+│   └── assets/
+└── mobile/           ← Flutter + Dart (🔄 Aktif)
+    ├── android/
+    ├── ios/          ← Build & test via Xcode Simulator
+    ├── lib/
+    │   ├── main.dart
+    │   ├── core/
+    │   │   ├── constants/
+    │   │   └── utils/
+    │   ├── models/
+    │   ├── screens/
+    │   ├── services/
+    │   └── providers/
+    ├── pubspec.yaml
+    └── test/
+```
+
+---
+
+## 6. PANDUAN PENGEMBANGAN FLUTTER MOBILE
+
+### 6.1 Inisialisasi Proyek
+```bash
+# Buat proyek Flutter baru di dalam direktori monorepo
+flutter create mobile --org com.travelplanner --platforms ios,android
+cd mobile
+
+# Jalankan di iOS Simulator (Xcode harus sudah terinstall)
+open -a Simulator
+flutter run
+
+# Cek daftar device yang tersedia
+flutter devices
+flutter run -d <device_id>
+```
+
+### 6.2 Dependencies (pubspec.yaml)
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP & State Management
+  dio: ^5.4.0
+  flutter_riverpod: ^2.4.0
+  shared_preferences: ^2.2.2
+
+  # Navigasi
+  go_router: ^13.0.0
+
+  # Peta (gratis, tanpa API key)
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
+  # UI
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  fl_chart: ^0.66.0
+
+  # Utilitas
+  intl: ^0.19.0
+  equatable: ^2.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+```
+
+### 6.3 Konfigurasi BASE_URL per Platform
+```dart
+// lib/core/constants/api_constants.dart
+class ApiConstants {
+  // Android Emulator → gunakan 10.0.2.2 (alias localhost host machine)
+  static const String baseUrl = 'http://10.0.2.2:3000';
+
+  // iOS Simulator → ganti ke:
+  // static const String baseUrl = 'http://localhost:3000';
+
+  // Device fisik → ganti ke IP mesin host, contoh:
+  // static const String baseUrl = 'http://192.168.1.5:3000';
+
+  static const String login = '/api/auth/login';
+  static const String register = '/api/auth/register';
+  static const String generateItinerary = '/api/itinerary/generate';
+  static const String itinerary = '/api/itinerary';
+  static const String userItineraries = '/api/itinerary/user';
+  static const String destinations = '/api/destinations';
+}
+```
+
+### 6.4 Visualisasi Peta — Rute Siklus Tertutup
+```dart
+// Bangun polyline tertutup: start → dest1 → dest2 → ... → start
+List<LatLng> buildClosedRoute(LatLng startPoint, List<LatLng> destinations) {
+  return [startPoint, ...destinations, startPoint];
+}
+
+// Di dalam FlutterMap widget:
+PolylineLayer(
+  polylines: [
+    Polyline(
+      points: buildClosedRoute(startPoint, destinationPoints),
+      color: Colors.blue,
+      strokeWidth: 3.0,
+    ),
+  ],
+),
+MarkerLayer(
+  markers: [
+    Marker(
+      point: startPoint,
+      child: const Icon(Icons.home, color: Colors.green, size: 36),
+    ),
+    ...destinationPoints.asMap().entries.map((entry) => Marker(
+      point: entry.value,
+      child: CircleAvatar(
+        backgroundColor: Colors.orange,
+        child: Text('${entry.key + 1}'),
+      ),
+    )),
+  ],
+),
+```
+
+### 6.5 Testing di Xcode Simulator (iOS)
+```bash
+# Pastikan Xcode & Command Line Tools sudah terinstall
+xcode-select --install
+
+# Buka Xcode Simulator
+open -a Simulator
+
+# Lihat daftar simulator tersedia
+xcrun simctl list devices
+
+# Jalankan Flutter di iOS Simulator
+flutter run
+
+# Build release iOS
+flutter build ios --release
+
+# Jalankan unit test
+flutter test
+```
+
+### 6.6 Konfigurasi Info.plist (iOS)
+Tambahkan ke `ios/Runner/Info.plist`:
+```xml
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Aplikasi membutuhkan lokasi untuk menentukan titik awal perjalanan Anda.</string>
+<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoads</key>
+  <true/>
+</dict>
+```
+
+---
+
+## 7. ATURAN LOGIKA WAJIB
+
+### 7.1 Rute Siklus Tertutup (Round-Trip)
+- Algoritma Greedy backend **WAJIB** menyusun jalur dari titik awal pengguna.
+- Setelah semua destinasi dikunjungi dalam satu hari, rute **WAJIB** kembali ke titik awal.
+- `estimated_cost` harian **mencakup** biaya transport pulang dari destinasi terakhir.
+- Polyline Flutter **WAJIB tertutup**: `[startPoint, ...destinations, startPoint]`.
+
+### 7.2 Batasan Wilayah Geografis (Geographic Boundary Filter)
+- Backend pra-filter destinasi berdasarkan kolom `city` sebelum algoritma berjalan.
+- Jika destinasi < 3, sistem memperluas ke kota berbatasan (konfigurasi backend).
+- Flutter menampilkan dropdown kota di form planner.
+
+---
+
+## 8. ALUR KERJA PENGEMBANGAN (MOBILE PHASE)
+```
+1.  Setup Flutter project di /mobile
+2.  Konfigurasi pubspec.yaml & install dependencies
+3.  Buat model Dart (fromJson/toJson sesuai response API)
+4.  Buat ApiService + AuthService (Dio + JWT interceptor)
+5.  Setup Riverpod providers & GoRouter
+6.  Buat screens: Login → Register → Home → Planner Form
+7.  Integrasikan POST /api/itinerary/generate
+8.  Tampilkan hasil itinerary per hari (TabBar + ListView)
+9.  Integrasi flutter_map + polyline siklus tertutup
+10. Halaman riwayat (GET /api/itinerary/user)
+11. Test di Xcode Simulator (iOS) + Android Emulator
+12. Polish UI: shimmer loading, error state, format Rupiah
+```
