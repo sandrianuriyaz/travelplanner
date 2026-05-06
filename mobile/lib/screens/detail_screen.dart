@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shimmer/shimmer.dart';
+import '../core/constants/app_colors.dart';
 import '../core/utils/format_utils.dart';
 import '../models/itinerary_detail_model.dart';
+import '../models/itinerary_model.dart';
 import '../providers/itinerary_provider.dart';
 
 class DetailScreen extends ConsumerStatefulWidget {
@@ -28,14 +30,14 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
     super.dispose();
   }
 
-  // ── Polyline tertutup per hari (Aturan 7.1) ───────────────────────────────
+  // Polyline tertutup: startPoint → dest1 → dest2 → ... → startPoint (Aturan 7.1)
   List<LatLng> _buildClosedRoute(
-      ItineraryDetailModel detail, JadwalHariDetail jadwal) {
-    final startPoint = LatLng(detail.startLatitude, detail.startLongitude);
-    final destinationPoints =
-        jadwal.destinasi.map((d) => LatLng(d.latitude, d.longitude)).toList();
-    // WAJIB: [startPoint, ...destinations, startPoint]
-    return [startPoint, ...destinationPoints, startPoint];
+      ItineraryModel itinerary, List<ItineraryDetailModel> hariDetails) {
+    final start = LatLng(itinerary.startingLat, itinerary.startingLng);
+    final points = hariDetails
+        .map((d) => LatLng(d.destination.latitude, d.destination.longitude))
+        .toList();
+    return [start, ...points, start];
   }
 
   @override
@@ -45,7 +47,7 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
     return detailAsync.when(
       loading: () => _buildSkeleton(context),
       error: (e, _) => _buildError(context, e.toString()),
-      data: (detail) => _buildContent(context, detail),
+      data: (itinerary) => _buildContent(context, itinerary),
     );
   }
 
@@ -77,7 +79,6 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
   }
 
   Widget _buildError(BuildContext context, String pesan) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Perjalanan')),
       body: Center(
@@ -86,12 +87,12 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.cloud_off, size: 64, color: colorScheme.error),
+              Icon(Icons.cloud_off, size: 64, color: AppColors.error),
               const SizedBox(height: 16),
               Text(
-                'Gagal memuat detail itinerary.\n$pesan',
+                'Gagal memuat detail.\n$pesan',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colorScheme.error),
+                style: TextStyle(color: AppColors.error),
               ),
               const SizedBox(height: 16),
               FilledButton(
@@ -111,79 +112,79 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
     );
   }
 
-  Widget _buildContent(BuildContext context, ItineraryDetailModel detail) {
-    _tabController ??= TabController(
-      length: detail.jadwal.length,
-      vsync: this,
-    )..addListener(() {
+  Widget _buildContent(BuildContext context, ItineraryModel itinerary) {
+    final grouped = itinerary.groupedByDay;
+    final sortedDays = grouped.keys.toList()..sort();
+
+    _tabController ??= TabController(length: sortedDays.length, vsync: this)
+      ..addListener(() {
         if (!_tabController!.indexIsChanging) {
           setState(() => _selectedDay = _tabController!.index);
         }
       });
 
-    final colorScheme = Theme.of(context).colorScheme;
-    final jadwalHariIni = detail.jadwal[_selectedDay];
-    final startPoint = LatLng(detail.startLatitude, detail.startLongitude);
-    final routePoints = _buildClosedRoute(detail, jadwalHariIni);
+    final currentDayDetails = grouped[sortedDays[_selectedDay]] ?? [];
+    final startPoint = LatLng(itinerary.startingLat, itinerary.startingLng);
+    final routePoints = _buildClosedRoute(itinerary, currentDayDetails);
 
-    final allLat = routePoints.map((p) => p.latitude).toList();
-    final allLng = routePoints.map((p) => p.longitude).toList();
-    final centerLat = allLat.reduce((a, b) => a + b) / allLat.length;
-    final centerLng = allLng.reduce((a, b) => a + b) / allLng.length;
+    final allLat = routePoints.map((p) => p.latitude);
+    final allLng = routePoints.map((p) => p.longitude);
+    final centerLat = allLat.reduce((a, b) => a + b) / routePoints.length;
+    final centerLng = allLng.reduce((a, b) => a + b) / routePoints.length;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(detail.preferensi ?? 'Detail Perjalanan'),
+        title: Text(itinerary.preference ?? 'Detail Perjalanan'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/home'),
         ),
         bottom: TabBar(
           controller: _tabController!,
-          tabs: detail.jadwal
-              .map((j) => Tab(text: 'Hari ${j.hari}'))
-              .toList(),
-          isScrollable: detail.jadwal.length > 4,
+          tabs: sortedDays.map((d) => Tab(text: 'Hari $d')).toList(),
+          isScrollable: sortedDays.length > 4,
         ),
       ),
       body: Column(
         children: [
           // ── Ringkasan ─────────────────────────────────────────────────
           Container(
-            color: colorScheme.primaryContainer,
+            color: AppColors.colorScheme.primaryContainer,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _InfoChip(
                   label: 'Total Anggaran',
-                  value: formatRupiah(detail.totalBudget),
+                  value: formatRupiah(itinerary.totalBudget),
                   icon: Icons.wallet_outlined,
-                  color: colorScheme.onPrimaryContainer,
                 ),
                 _InfoChip(
                   label: 'Durasi',
-                  value: '${detail.durationDays} hari',
+                  value: '${itinerary.durationDays} hari',
                   icon: Icons.calendar_today_outlined,
-                  color: colorScheme.onPrimaryContainer,
                 ),
                 _InfoChip(
                   label: 'Dibuat',
-                  value: formatTanggal(detail.dibuatPada).split(',').first,
+                  value: formatTanggal(itinerary.createdAt.toIso8601String())
+                      .split(',')
+                      .first,
                   icon: Icons.event_note_outlined,
-                  color: colorScheme.onPrimaryContainer,
                 ),
               ],
             ),
           ),
 
+          // ── Konten per hari ───────────────────────────────────────────
           Expanded(
             child: TabBarView(
               controller: _tabController!,
-              children: detail.jadwal.map((jadwal) {
-                final points = _buildClosedRoute(detail, jadwal);
-                final destPoints = jadwal.destinasi
-                    .map((d) => LatLng(d.latitude, d.longitude))
+              children: sortedDays.map((dayNum) {
+                final hariDetails = grouped[dayNum] ?? [];
+                final points = _buildClosedRoute(itinerary, hariDetails);
+                final destPoints = hariDetails
+                    .map((d) =>
+                        LatLng(d.destination.latitude, d.destination.longitude))
                     .toList();
 
                 return Column(
@@ -195,9 +196,6 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
                         options: MapOptions(
                           initialCenter: LatLng(centerLat, centerLng),
                           initialZoom: 11,
-                          interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.all,
-                          ),
                         ),
                         children: [
                           TileLayer(
@@ -209,20 +207,21 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
                             polylines: [
                               Polyline(
                                 points: points,
-                                color: colorScheme.primary,
+                                color: AppColors.primary,
                                 strokeWidth: 3.0,
                               ),
                             ],
                           ),
                           MarkerLayer(
                             markers: [
+                              // Titik awal
                               Marker(
                                 point: startPoint,
                                 width: 40,
                                 height: 40,
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.green.shade600,
+                                    color: AppColors.mapMarkerStart,
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                         color: Colors.white, width: 2),
@@ -231,31 +230,30 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
                                       color: Colors.white, size: 20),
                                 ),
                               ),
-                              ...destPoints.asMap().entries.map((entry) {
-                                return Marker(
-                                  point: entry.value,
-                                  width: 36,
-                                  height: 36,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade700,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: Colors.white, width: 2),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${entry.key + 1}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
+                              // Destinasi bernomor
+                              ...destPoints.asMap().entries.map((e) => Marker(
+                                    point: e.value,
+                                    width: 36,
+                                    height: 36,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.mapMarkerDestination,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white, width: 2),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${e.key + 1}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
+                                  )),
                             ],
                           ),
                         ],
@@ -264,56 +262,17 @@ class _DetailScreenState extends ConsumerState<DetailScreen>
 
                     // ── Daftar destinasi ──────────────────────────────────
                     Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: jadwal.destinasi.length,
-                        itemBuilder: (context, idx) {
-                          final dest = jadwal.destinasi[idx];
-                          return _DestinasiCard(
-                            nomor: dest.urutan,
-                            nama: dest.nama,
-                            kategori: dest.kategori,
-                            kota: dest.kota,
-                            estimatedCost: dest.estimatedCost,
-                          );
-                        },
-                      ),
-                    ),
-
-                    // ── Leg kembali ───────────────────────────────────────
-                    Container(
-                      margin: const EdgeInsets.all(12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.home, color: Colors.green.shade700),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Kembali ke titik awal',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.w600),
-                                ),
-                                Text(
-                                  '${jadwal.ruteKembali.jarakKm.toStringAsFixed(1)} km · '
-                                  '${formatMenit(jadwal.ruteKembali.waktuTempuhMenit)} · '
-                                  '${formatRupiah(jadwal.ruteKembali.estimasiBiaya)}',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.black54),
-                                ),
-                              ],
+                      child: hariDetails.isEmpty
+                          ? const Center(
+                              child: Text('Tidak ada destinasi pada hari ini'))
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: hariDetails.length,
+                              itemBuilder: (context, idx) {
+                                return _DestinasiCard(
+                                    detail: hariDetails[idx]);
+                              },
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 );
@@ -330,17 +289,16 @@ class _InfoChip extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  final Color color;
 
   const _InfoChip({
     required this.label,
     required this.value,
     required this.icon,
-    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final color = AppColors.colorScheme.onPrimaryContainer;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -357,23 +315,13 @@ class _InfoChip extends StatelessWidget {
 }
 
 class _DestinasiCard extends StatelessWidget {
-  final int nomor;
-  final String nama;
-  final String kategori;
-  final String kota;
-  final int estimatedCost;
+  final ItineraryDetailModel detail;
 
-  const _DestinasiCard({
-    required this.nomor,
-    required this.nama,
-    required this.kategori,
-    required this.kota,
-    required this.estimatedCost,
-  });
+  const _DestinasiCard({required this.detail});
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final dest = detail.destination;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -385,13 +333,13 @@ class _DestinasiCard extends StatelessWidget {
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
-                color: Colors.orange.shade700,
+              decoration: const BoxDecoration(
+                color: AppColors.accent,
                 shape: BoxShape.circle,
               ),
               child: Center(
                 child: Text(
-                  '$nomor',
+                  '${detail.orderInDay}',
                   style: const TextStyle(
                       color: Colors.white, fontWeight: FontWeight.bold),
                 ),
@@ -402,23 +350,23 @@ class _DestinasiCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(nama,
+                  Text(dest.name,
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 15)),
                   const SizedBox(height: 4),
-                  Text('$kategori · $kota',
-                      style: TextStyle(
-                          color: colorScheme.onSurfaceVariant, fontSize: 12)),
+                  Text('${dest.category} · ${dest.city}',
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.receipt_outlined,
-                          size: 14, color: colorScheme.primary),
+                      const Icon(Icons.receipt_outlined,
+                          size: 14, color: AppColors.primary),
                       const SizedBox(width: 4),
                       Text(
-                        'Estimasi biaya: ${formatRupiah(estimatedCost)}',
-                        style: TextStyle(
-                          color: colorScheme.primary,
+                        'Estimasi: ${formatRupiah(detail.estimatedCost)}',
+                        style: const TextStyle(
+                          color: AppColors.primary,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),

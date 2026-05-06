@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/itinerary_generated_model.dart';
-import '../models/itinerary_detail_model.dart';
+import '../models/itinerary_model.dart';
 import '../models/riwayat_model.dart';
 import '../services/itinerary_service.dart';
 
@@ -67,24 +67,25 @@ class GenerateNotifier extends Notifier<GenerateState> {
   }
 }
 
-final generateProvider = NotifierProvider<GenerateNotifier, GenerateState>(() => GenerateNotifier());
+final generateProvider =
+    NotifierProvider<GenerateNotifier, GenerateState>(() => GenerateNotifier());
 
-// ─── Provider riwayat ─────────────────────────────────────────────────────────
+// ─── Provider riwayat (preview list) ─────────────────────────────────────────
 
 final riwayatProvider = FutureProvider<List<RiwayatItemModel>>((ref) async {
   final service = ref.read(itineraryServiceProvider);
   return service.getRiwayat();
 });
 
-// ─── Provider detail itinerary (per ID) ──────────────────────────────────────
+// ─── Provider detail itinerary (per ID) — mengembalikan ItineraryModel ───────
 
 final itineraryDetailProvider =
-    FutureProvider.family<ItineraryDetailModel, int>((ref, id) async {
+    FutureProvider.family<ItineraryModel, int>((ref, id) async {
   final service = ref.read(itineraryServiceProvider);
   return service.getItineraryById(id);
 });
 
-// ─── Provider daftar kota ─────────────────────────────────────────────────────
+// ─── Provider daftar kota untuk dropdown form ─────────────────────────────────
 
 final daftarKotaProvider = FutureProvider<List<String>>((ref) async {
   final service = ref.read(itineraryServiceProvider);
