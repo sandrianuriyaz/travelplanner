@@ -40,6 +40,12 @@ export default function ResultScreen({ nav, params }) {
     if (status !== 'granted') { Alert.alert('Izin Ditolak', 'Izin lokasi diperlukan.'); return; }
     setIsNavigating(true);
     webViewRef.current?.injectJavaScript('startNavigation(); true;');
+    if (destinations[0]) {
+      const nama = (destinations[0].nama || '').replace(/'/g, "\\'");
+      webViewRef.current?.injectJavaScript(
+        `setNavDest('${nama}', 'Stop 1 dari ${destinations.length}'); true;`
+      );
+    }
     locationSub.current = await Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 10 },
       ({ coords }) => {

@@ -10,15 +10,18 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import PlannerScreen from './src/screens/PlannerScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
+import ExploreScreen from './src/screens/ExploreScreen';
+import MapScreen from './src/screens/MapScreen';
 import ResultScreen from './src/screens/ResultScreen';
 import DetailScreen from './src/screens/DetailScreen';
 
-const TAB_SCREENS = ['Home', 'Planner', 'History'];
+const TAB_SCREENS = ['Home', 'Planner', 'Map', 'History'];
 
 const TABS = [
-  { name: 'Home',    label: 'Beranda',    icon: 'home',           iconActive: 'home' },
-  { name: 'Planner', label: 'Rencanakan', icon: 'map-outline',    iconActive: 'map' },
-  { name: 'History', label: 'Riwayat',    icon: 'time-outline',   iconActive: 'time' },
+  { name: 'Home',    label: 'Beranda',    icon: 'home-outline',    iconActive: 'home' },
+  { name: 'Planner', label: 'Rencanakan', icon: 'sparkles-outline',iconActive: 'sparkles' },
+  { name: 'Map',     label: 'Peta',       icon: 'map-outline',     iconActive: 'map' },
+  { name: 'History', label: 'Riwayat',    icon: 'time-outline',    iconActive: 'time' },
 ];
 
 function useNavigation(setActiveTab) {
@@ -109,6 +112,8 @@ export default function App() {
       case 'Register': return <RegisterScreen nav={nav} />;
       case 'Home':     return <HomeScreen nav={nav} />;
       case 'Planner':  return <PlannerScreen nav={nav} />;
+      case 'Map':      return <MapScreen nav={nav} />;
+      case 'Explore':  return <ExploreScreen nav={nav} />;
       case 'History':  return <HistoryScreen nav={nav} />;
       case 'Result':   return <ResultScreen nav={nav} params={current.params} />;
       case 'Detail':   return <DetailScreen nav={nav} params={current.params} />;

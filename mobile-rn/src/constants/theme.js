@@ -1,43 +1,68 @@
 export const COLORS = {
-  primary: '#1565C0',
-  primaryDark: '#0D47A1',
-  primaryLight: '#42A5F5',
-  secondary: '#00897B',
-  accent: '#FF6F00',
-  success: '#2E7D32',
-  error: '#C62828',
-  warning: '#F57F17',
+  // Primary: teal (sama web)
+  primary: '#0d9488',
+  primaryDark: '#0f766e',
+  primaryLight: '#14b8a6',
+
+  // Secondary: biru (sama web)
+  secondary: '#2563eb',
+  secondaryDark: '#1d4ed8',
+  secondaryLight: '#3b82f6',
+
+  // Accent: orange
+  accent: '#f97316',
+  accentDark: '#ea580c',
+
+  success: '#16a34a',
+  error: '#dc2626',
+  warning: '#d97706',
 
   white: '#FFFFFF',
-  background: '#F0F4F8',
+  background: '#f0f9ff',
   surface: '#FFFFFF',
-  border: '#E8ECF0',
+  border: 'rgba(255,255,255,0.5)',
+  borderGray: '#e2e8f0',
 
-  textPrimary: '#1A237E',
-  textSecondary: '#546E7A',
-  textHint: '#90A4AE',
+  textPrimary: '#0f172a',
+  textSecondary: '#475569',
+  textHint: '#94a3b8',
 };
 
 export const SHADOW = {
   small: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   medium: {
-    shadowColor: '#1565C0',
+    shadowColor: '#0d9488',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 6,
   },
 };
 
 export const RADIUS = {
-  sm: 8,
-  md: 14,
+  sm: 10,
+  md: 16,
   lg: 20,
   xl: 28,
 };
+
+// Warna kategori destinasi (sama dengan web)
+export const KATEGORI_WARNA = {
+  'Budaya':            '#ea580c',
+  'Bahari':            '#0284c7',
+  'Cagar Alam':        '#16a34a',
+  'Taman Hiburan':     '#9333ea',
+  'Taman Wisata Alam': '#0d9488',
+  'Default':           '#0d9488',
+};
+
+export const WARNA_RUTE = [
+  '#0d9488', '#2563eb', '#9333ea',
+  '#dc2626', '#d97706', '#16a34a', '#db2777',
+];
