@@ -82,7 +82,7 @@ export default function ExploreScreen({ nav }) {
     return (
       <TouchableOpacity style={styles.card} onPress={() => setSelected(item)} activeOpacity={0.88}>
         <View style={[styles.cardImg, { backgroundColor: kat.bg }]}>
-          <Ionicons name={kat.icon} size={36} color={kat.text} />
+          <Ionicons name={kat.icon} size={52} color={kat.text} />
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     marginBottom: 10, overflow: 'hidden', ...SHADOW.small,
   },
   cardImg: {
-    height: 90, alignItems: 'center', justifyContent: 'center',
+    height: 120, alignItems: 'center', justifyContent: 'center',
   },
   cardBody: { padding: 10 },
   cardName: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 4 },
