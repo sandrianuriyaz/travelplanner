@@ -104,37 +104,64 @@ export default function ResultScreen({ nav, params }) {
         <Text style={styles.headerTitle}>Rencana Perjalanan</Text>
       </View>
 
-      {/* Budget Summary */}
-      <View style={styles.budgetBar}>
-        <View style={styles.budgetItem}>
-          <Text style={styles.budgetLabel}>Total Anggaran</Text>
-          <Text style={styles.budgetVal}>{formatRupiah(itinerary.total_budget)}</Text>
-        </View>
-        <View style={styles.budgetDivider} />
-        <View style={styles.budgetItem}>
-          <Text style={styles.budgetLabel}>Biaya Makan</Text>
-          <Text style={[styles.budgetVal, { color: '#7c3aed' }]}>
-            {formatRupiah(100000 * itinerary.duration_days)}
-          </Text>
-        </View>
-        <View style={styles.budgetDivider} />
-        <View style={styles.budgetItem}>
-          <Text style={styles.budgetLabel}>Wisata</Text>
-          <Text style={[styles.budgetVal, { color: COLORS.accent }]}>
-            {formatRupiah(itinerary.total_biaya_terpakai - 100000 * itinerary.duration_days)}
-          </Text>
-        </View>
-        <View style={styles.budgetDivider} />
-        <View style={styles.budgetItem}>
-          <Text style={styles.budgetLabel}>Sisa</Text>
-          <Text style={[styles.budgetVal, { color: COLORS.success }]}>{formatRupiah(itinerary.sisa_budget)}</Text>
-        </View>
-      </View>
-      {/* Keterangan biaya makan */}
-      <View style={styles.makanNote}>
-        <Ionicons name="information-circle-outline" size={13} color={COLORS.textHint} />
-        <Text style={styles.makanNoteText}>Biaya makan Rp100.000/hari sudah termasuk dalam total</Text>
-      </View>
+      {/* Budget Summary — hitung dari data jadwal agar akurat */}
+      {(() => {
+        const totalMakan     = 100000 * itinerary.duration_days;
+        const totalTiket     = jadwal.reduce((s, h) =>
+          s + h.destinasi.reduce((ss, d) => ss + (d.harga_tiket || 0), 0), 0);
+        const totalTransport = Math.max(0, itinerary.total_biaya_terpakai - totalMakan - totalTiket);
+
+        return (
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.budgetBar}
+              contentContainerStyle={styles.budgetBarContent}
+            >
+              <View style={styles.budgetItem}>
+                <Text style={styles.budgetLabel}>Anggaran</Text>
+                <Text style={styles.budgetVal}>{formatRupiah(itinerary.total_budget)}</Text>
+              </View>
+              <View style={styles.budgetDivider} />
+              <View style={styles.budgetItem}>
+                <Text style={styles.budgetLabel}>Makan</Text>
+                <Text style={[styles.budgetVal, { color: '#7c3aed' }]}>
+                  {formatRupiah(totalMakan)}
+                </Text>
+                <Text style={styles.budgetNote}>{itinerary.duration_days} hari</Text>
+              </View>
+              <View style={styles.budgetDivider} />
+              <View style={styles.budgetItem}>
+                <Text style={styles.budgetLabel}>Tiket</Text>
+                <Text style={[styles.budgetVal, { color: COLORS.accent }]}>
+                  {formatRupiah(totalTiket)}
+                </Text>
+              </View>
+              <View style={styles.budgetDivider} />
+              <View style={styles.budgetItem}>
+                <Text style={styles.budgetLabel}>Transport</Text>
+                <Text style={[styles.budgetVal, { color: '#0284c7' }]}>
+                  {formatRupiah(totalTransport)}
+                </Text>
+              </View>
+              <View style={styles.budgetDivider} />
+              <View style={styles.budgetItem}>
+                <Text style={styles.budgetLabel}>Sisa</Text>
+                <Text style={[styles.budgetVal, { color: COLORS.success }]}>
+                  {formatRupiah(itinerary.sisa_budget)}
+                </Text>
+              </View>
+            </ScrollView>
+            <View style={styles.makanNote}>
+              <Ionicons name="information-circle-outline" size={12} color={COLORS.textHint} />
+              <Text style={styles.makanNoteText}>
+                Makan Rp100.000/hari · Tiket masuk per destinasi · Transport pergi-pulang
+              </Text>
+            </View>
+          </>
+        );
+      })()}
 
       {/* Day Tabs */}
       {jadwal.length > 1 && (
@@ -262,17 +289,21 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700', flex: 1 },
 
   budgetBar: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    paddingVertical: 10, paddingHorizontal: 4,
+    backgroundColor: '#fff',
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
-  budgetItem: { flex: 1, alignItems: 'center', paddingHorizontal: 2 },
-  budgetDivider: { width: 1, backgroundColor: COLORS.border, marginVertical: 4 },
-  budgetLabel: { fontSize: 9, color: COLORS.textHint, marginBottom: 2, fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' },
-  budgetVal: { fontSize: 11, fontWeight: '800', color: COLORS.primary, textAlign: 'center' },
+  budgetBarContent: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 10, paddingHorizontal: 8,
+  },
+  budgetItem: { alignItems: 'center', paddingHorizontal: 14 },
+  budgetDivider: { width: 1, height: 32, backgroundColor: COLORS.border },
+  budgetLabel: { fontSize: 9, color: COLORS.textHint, marginBottom: 2, fontWeight: '700', textTransform: 'uppercase', textAlign: 'center' },
+  budgetVal: { fontSize: 12, fontWeight: '800', color: COLORS.primary, textAlign: 'center' },
+  budgetNote: { fontSize: 9, color: COLORS.textHint, marginTop: 1 },
   makanNote: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#f8fafc', paddingHorizontal: 12, paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#f8fafc', paddingHorizontal: 12, paddingVertical: 7,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   makanNoteText: { fontSize: 11, color: COLORS.textHint, flex: 1 },
