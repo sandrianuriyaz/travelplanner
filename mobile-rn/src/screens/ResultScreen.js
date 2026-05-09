@@ -112,14 +112,28 @@ export default function ResultScreen({ nav, params }) {
         </View>
         <View style={styles.budgetDivider} />
         <View style={styles.budgetItem}>
-          <Text style={styles.budgetLabel}>Terpakai</Text>
-          <Text style={[styles.budgetVal, { color: COLORS.accent }]}>{formatRupiah(itinerary.total_biaya_terpakai)}</Text>
+          <Text style={styles.budgetLabel}>Biaya Makan</Text>
+          <Text style={[styles.budgetVal, { color: '#7c3aed' }]}>
+            {formatRupiah(100000 * itinerary.duration_days)}
+          </Text>
+        </View>
+        <View style={styles.budgetDivider} />
+        <View style={styles.budgetItem}>
+          <Text style={styles.budgetLabel}>Wisata</Text>
+          <Text style={[styles.budgetVal, { color: COLORS.accent }]}>
+            {formatRupiah(itinerary.total_biaya_terpakai - 100000 * itinerary.duration_days)}
+          </Text>
         </View>
         <View style={styles.budgetDivider} />
         <View style={styles.budgetItem}>
           <Text style={styles.budgetLabel}>Sisa</Text>
           <Text style={[styles.budgetVal, { color: COLORS.success }]}>{formatRupiah(itinerary.sisa_budget)}</Text>
         </View>
+      </View>
+      {/* Keterangan biaya makan */}
+      <View style={styles.makanNote}>
+        <Ionicons name="information-circle-outline" size={13} color={COLORS.textHint} />
+        <Text style={styles.makanNoteText}>Biaya makan Rp100.000/hari sudah termasuk dalam total</Text>
       </View>
 
       {/* Day Tabs */}
@@ -249,13 +263,19 @@ const styles = StyleSheet.create({
 
   budgetBar: {
     flexDirection: 'row', backgroundColor: '#fff',
-    paddingVertical: 12, paddingHorizontal: 8,
+    paddingVertical: 10, paddingHorizontal: 4,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
-  budgetItem: { flex: 1, alignItems: 'center' },
+  budgetItem: { flex: 1, alignItems: 'center', paddingHorizontal: 2 },
   budgetDivider: { width: 1, backgroundColor: COLORS.border, marginVertical: 4 },
-  budgetLabel: { fontSize: 10, color: COLORS.textHint, marginBottom: 3, fontWeight: '600', textTransform: 'uppercase' },
-  budgetVal: { fontSize: 13, fontWeight: '800', color: COLORS.primary },
+  budgetLabel: { fontSize: 9, color: COLORS.textHint, marginBottom: 2, fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' },
+  budgetVal: { fontSize: 11, fontWeight: '800', color: COLORS.primary, textAlign: 'center' },
+  makanNote: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#f8fafc', paddingHorizontal: 12, paddingVertical: 6,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  makanNoteText: { fontSize: 11, color: COLORS.textHint, flex: 1 },
 
   tabWrap: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: COLORS.border },
   tabScroll: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },

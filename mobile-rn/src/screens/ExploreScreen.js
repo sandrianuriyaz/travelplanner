@@ -112,8 +112,13 @@ export default function ExploreScreen({ nav }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Jelajahi Destinasi</Text>
-        <Text style={styles.headerSub}>{filtered.length} destinasi ditemukan</Text>
+        <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={20} color="#fff" />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Jelajahi Destinasi</Text>
+          <Text style={styles.headerSub}>{filtered.length} destinasi ditemukan</Text>
+        </View>
       </View>
 
       {/* Search */}
@@ -134,7 +139,7 @@ export default function ExploreScreen({ nav }) {
       </View>
 
       {/* Filter Kategori */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingLeft: 12, paddingRight: 20, gap: 8 }}>
         {KATEGORI_LIST.map((k) => (
           <TouchableOpacity
             key={k}
@@ -147,7 +152,7 @@ export default function ExploreScreen({ nav }) {
       </ScrollView>
 
       {/* Filter Kota */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kotaRow} contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kotaRow} contentContainerStyle={{ paddingLeft: 12, paddingRight: 20, gap: 8 }}>
         {['', ...kota].map((k) => (
           <TouchableOpacity
             key={k || 'all'}
@@ -266,10 +271,16 @@ const styles = StyleSheet.create({
   emptyText: { color: COLORS.textHint, fontSize: 14 },
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 56, paddingBottom: 16, paddingHorizontal: 20,
+    paddingTop: 52, paddingBottom: 12, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#fff' },
-  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
+  headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#fff', marginHorizontal: 12, marginTop: 12,
