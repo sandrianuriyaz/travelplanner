@@ -32,13 +32,24 @@ const MIN_DESTINASI_KOTA  = 3;       // Fallback ke kota tetangga jika < nilai i
 
 // Peta kota tetangga (Aturan 6.2 — fallback wilayah)
 const KOTA_TETANGGA = {
-  Tasikmalaya : ['Ciamis', 'Garut', 'Pangandaran', 'Banjar'],
+  Tasikmalaya : ['Ciamis', 'Garut', 'Pangandaran', 'Banjar', 'Kuningan'],
   Ciamis      : ['Tasikmalaya', 'Pangandaran', 'Banjar', 'Kuningan'],
-  Garut       : ['Tasikmalaya', 'Bandung', 'Sumedang'],
-  Pangandaran : ['Tasikmalaya', 'Ciamis'],
-  Banjar      : ['Ciamis', 'Tasikmalaya'],
-  Bandung     : ['Garut', 'Sumedang', 'Cianjur'],
+  Garut       : ['Tasikmalaya', 'Bandung', 'Sumedang', 'Cianjur'],
+  Pangandaran : ['Tasikmalaya', 'Ciamis', 'Banjar'],
+  Banjar      : ['Ciamis', 'Tasikmalaya', 'Pangandaran'],
+  Bandung     : ['Garut', 'Sumedang', 'Cianjur', 'Majalengka', 'Subang'],
+  Majalengka  : ['Bandung', 'Sumedang', 'Cirebon', 'Kuningan', 'Indramayu'],
+  Cirebon     : ['Majalengka', 'Kuningan', 'Indramayu', 'Brebes'],
+  Kuningan    : ['Cirebon', 'Majalengka', 'Ciamis', 'Tasikmalaya'],
+  Sumedang    : ['Bandung', 'Majalengka', 'Garut', 'Subang'],
+  Indramayu   : ['Cirebon', 'Majalengka', 'Subang'],
+  Subang      : ['Bandung', 'Sumedang', 'Indramayu', 'Karawang'],
+  Karawang    : ['Bekasi', 'Subang', 'Purwakarta'],
+  Bekasi      : ['Jakarta', 'Karawang', 'Bogor'],
   Jakarta     : ['Bogor', 'Bekasi', 'Tangerang', 'Depok'],
+  Bogor       : ['Jakarta', 'Depok', 'Cianjur', 'Sukabumi'],
+  Semarang    : ['Demak', 'Kendal', 'Semarang'],
+  Yogyakarta  : ['Sleman', 'Bantul', 'Klaten', 'Magelang'],
   Surabaya    : ['Sidoarjo', 'Gresik', 'Mojokerto'],
 };
 
@@ -235,7 +246,9 @@ function jalankanGreedy(kandidat, startLat, startLng, budgetHarian, idDikunjungi
  * }
  */
 async function generateItinerary(req, res) {
-  const { total_budget, duration_days, start_latitude, start_longitude, city_preference, category_preference } = req.body;
+  const { total_budget, duration_days, start_latitude, start_longitude,
+          city_preference, category_preference,
+          include_hotel = false, include_meals = true } = req.body;
 
   console.log('[generateItinerary] Payload diterima:', req.body);
   // ── Validasi input ────────────────────────────────────────────────────────
@@ -278,61 +291,95 @@ async function generateItinerary(req, res) {
       });
     }
 
-    // ── Cari hotel termurah di kota ───────────────────────────────────────
-    // Cari di kota yang sama, fallback ke estimasi default
     const kotaList = [kotaAwal, ...(kotaAktif || [])];
-    let hotelTerpilih = null;
-    for (const kota of kotaList) {
-      hotelTerpilih = await prisma.hotel.findFirst({
-        where: { city: { contains: kota, mode: 'insensitive' }, price_per_night: { gt: 0 } },
-        orderBy: { price_per_night: 'asc' },
-      });
-      if (hotelTerpilih) break;
-    }
-    const biayaHotelPerMalam = hotelTerpilih ? hotelTerpilih.price_per_night : 200000;
-    const biayaHotelTotal    = biayaHotelPerMalam * duration_days;
 
-    // ── Cari rata-rata biaya makan dari data restoran ─────────────────────
-    let biayaMakanHarian = BIAYA_MAKAN_HARIAN_DEFAULT;
-    for (const kota of kotaList) {
-      const restaurants = await prisma.restaurant.findMany({
-        where: { city: { contains: kota, mode: 'insensitive' } },
-        select: { avg_cost_for_two: true },
-      });
-      if (restaurants.length > 0) {
-        const avgCostForTwo = restaurants.reduce((s, r) => s + r.avg_cost_for_two, 0) / restaurants.length;
-        // Per orang per makan = avg_cost_for_two / 2
-        // 3 kali makan sehari
-        biayaMakanHarian = Math.round((avgCostForTwo / 2) * 3);
-        break;
+    // ── Helper: cari hotel optimal ────────────────────────────────────────
+    // Memilih hotel yang posisinya ANTARA lastDest (hari ini) dan nextArea (hari besok)
+    // sehingga tidak perlu muter-muter
+    let _hotelCache = null; // cache sekali ambil dari DB
+    async function cariHotelOptimal(fromLat, fromLng, toLat, toLng) {
+      if (!_hotelCache) {
+        _hotelCache = await prisma.hotel.findMany({
+          where: { price_per_night: { gt: 0 } },
+          select: { id:true, name:true, city:true, latitude:true, longitude:true,
+                    price_per_night:true, star_rating:true },
+        });
       }
-    }
-    const biayaMakanTotal = biayaMakanHarian * duration_days;
+      if (!_hotelCache.length) return null;
 
-    // ── Budget tersisa untuk wisata (transport + tiket) ───────────────────
-    const budgetWisataTotal  = Math.max(0, total_budget - biayaHotelTotal - biayaMakanTotal);
-    const budgetHarian       = Math.floor(budgetWisataTotal / duration_days);
+      // Skor = 60% jarak dari lastDest + 40% jarak ke nextArea
+      // Hotel terbaik = yang minimumkan total jarak bolak-balik
+      const scored = _hotelCache
+        .filter(h => h.latitude && h.longitude)
+        .map(h => ({
+          ...h,
+          skor: hitungJarak(fromLat, fromLng, h.latitude, h.longitude) * 0.6
+              + hitungJarak(toLat,   toLng,   h.latitude, h.longitude) * 0.4,
+          jarakDariLastDest: hitungJarak(fromLat, fromLng, h.latitude, h.longitude),
+        }))
+        .filter(h => h.jarakDariLastDest <= 150) // tidak lebih dari 150km dari lastDest
+        .sort((a, b) => a.skor - b.skor);
+
+      return scored[0] || null;
+    }
+
+    // ── Makan: hanya jika include_meals=true ─────────────────────────────
+    let biayaMakanHarian = 0;
+    let biayaMakanTotal  = 0;
+
+    if (include_meals) {
+      biayaMakanHarian = BIAYA_MAKAN_HARIAN_DEFAULT;
+      for (const kota of kotaList) {
+        const restaurants = await prisma.restaurant.findMany({
+          where: { city: { contains: kota, mode: 'insensitive' } },
+          select: { avg_cost_for_two: true },
+        });
+        if (restaurants.length > 0) {
+          const avg = restaurants.reduce((s, r) => s + r.avg_cost_for_two, 0) / restaurants.length;
+          biayaMakanHarian = Math.round((avg / 2) * 3);
+          break;
+        }
+      }
+      biayaMakanTotal = biayaMakanHarian * duration_days;
+    }
+
+    // ── Estimasi biaya hotel (untuk kalkulasi budget wisata) ──────────────
+    // Biaya hotel dihitung per malam = jumlah_hari - 1
+    const jumlahMalam = Math.max(0, duration_days - 1);
+    let biayaHotelEstimasi = 0;
+    if (include_hotel && jumlahMalam > 0) {
+      const hotelSample = await prisma.hotel.findFirst({ where: { price_per_night: { gt: 0 } }, orderBy: { price_per_night: 'asc' } });
+      biayaHotelEstimasi = (hotelSample?.price_per_night || 200000) * jumlahMalam;
+    }
+
+    // ── Budget wisata bersih ──────────────────────────────────────────────
+    const budgetWisataTotal = Math.max(0, total_budget - biayaHotelEstimasi - biayaMakanTotal);
+    const budgetHarian      = Math.floor(budgetWisataTotal / duration_days);
 
     const jadwal         = [];
     const idSudahDipilih = new Set();
-    let   budgetTerpakai = biayaHotelTotal + biayaMakanTotal; // sudah termasuk hotel & makan
+    let   budgetTerpakai = biayaMakanTotal;
+    const hotelsPerMalam = []; // hotel yang dipilih tiap malam
 
-    // ── Loop per hari ─────────────────────────────────────────────────────
+    // Posisi "base" saat ini — bergerak ke hotel setiap akhir hari
+    let currentLat   = start_latitude;
+    let currentLng   = start_longitude;
+    let currentHotel = null; // hotel aktif (bisa dipakai beberapa malam)
+
+    // ── Loop per hari — RUTE BERKELANJUTAN ───────────────────────────────
     for (let hari = 1; hari <= duration_days; hari++) {
 
-      // Posisi awal setiap hari = hotel (titik awal)
+      // Greedy dimulai dari posisi saat ini (start atau hotel malam sebelumnya)
       const { destinasiTerpilih, biayaPulang, menitPulang, jarakPulangKm } =
-        jalankanGreedy(kandidat, start_latitude, start_longitude, budgetHarian, idSudahDipilih);
+        jalankanGreedy(kandidat, currentLat, currentLng, budgetHarian, idSudahDipilih);
 
-      // Hitung total waktu & biaya hari ini
       let totalMenitHari      = 0;
-      let totalBiayaKunjungan = 0; // Hanya wisata (tiket + transport ke dest)
+      let totalBiayaKunjungan = 0;
 
       const detailDestinasi = destinasiTerpilih.map((dest, idx) => {
         idSudahDipilih.add(dest.id);
         totalBiayaKunjungan += dest.biaya_kunjungan;
         totalMenitHari      += dest.waktu_tempuh_menit + dest.average_duration_spent + MENIT_ISTIRAHAT;
-
         return {
           urutan           : idx + 1,
           destinationId    : dest.id,
@@ -343,38 +390,96 @@ async function generateItinerary(req, res) {
           latitude         : dest.latitude,
           longitude        : dest.longitude,
           harga_tiket      : dest.entrance_fee,
-          durasi_kunjungan_menit: dest.average_duration_spent,
+          durasi_kunjungan_menit  : dest.average_duration_spent,
           jarak_dari_sebelumnya_km: dest.jarak_km,
           waktu_tempuh_menit      : dest.waktu_tempuh_menit,
           estimasi_transport      : dest.biaya_transport_ke,
         };
       });
 
-      // Total biaya hari = wisata (tiket + transport ke) + transport pulang
-      // (makan & hotel sudah dihitung terpisah di budgetTerpakai awal)
-      const totalBiayaWisataHari = totalBiayaKunjungan + biayaPulang;
-      const totalBiayaHari = totalBiayaWisataHari + biayaMakanHarian;
-      totalMenitHari      += menitPulang;
-      budgetTerpakai      += totalBiayaWisataHari; // makan sudah di-init
+      const isLastDay = hari === duration_days;
+      const lastDest  = destinasiTerpilih[destinasiTerpilih.length - 1];
+
+      // ── Pilih hotel malam ini (efisien, tidak muter-muter) ────────────────
+      let hotelMalam      = null;
+      let biayaHotelMalam = 0;
+
+      if (!isLastDay && include_hotel && lastDest) {
+        // Prediksi area hari berikutnya:
+        // Ambil centroid dari destinasi yang belum dikunjungi terdekat dari lastDest
+        const sisaKandidat = kandidat
+          .filter(d => !idSudahDipilih.has(d.id))
+          .sort((a, b) =>
+            hitungJarak(lastDest.latitude, lastDest.longitude, a.latitude, a.longitude) -
+            hitungJarak(lastDest.latitude, lastDest.longitude, b.latitude, b.longitude)
+          );
+        const nextAreaLat = sisaKandidat.length > 0 ? sisaKandidat[0].latitude  : lastDest.latitude;
+        const nextAreaLng = sisaKandidat.length > 0 ? sisaKandidat[0].longitude : lastDest.longitude;
+
+        // Cek apakah hotel saat ini bisa dipakai lagi (reuse):
+        // Layak di-reuse jika hotel < 40km dari lastDest DAN < 40km dari nextArea
+        if (currentHotel) {
+          const dHotelLastDest = hitungJarak(lastDest.latitude, lastDest.longitude, currentHotel.latitude, currentHotel.longitude);
+          const dHotelNextArea = hitungJarak(nextAreaLat, nextAreaLng, currentHotel.latitude, currentHotel.longitude);
+          if (dHotelLastDest <= 40 && dHotelNextArea <= 40) {
+            hotelMalam = currentHotel; // ✅ Menginap di hotel yang sama
+          }
+        }
+
+        // Jika tidak bisa reuse, cari hotel baru yang efisien
+        if (!hotelMalam) {
+          hotelMalam = await cariHotelOptimal(lastDest.latitude, lastDest.longitude, nextAreaLat, nextAreaLng);
+          currentHotel = hotelMalam;
+        }
+
+        if (hotelMalam) {
+          biayaHotelMalam = hotelMalam.price_per_night;
+          hotelsPerMalam.push({ hari, hotel: hotelMalam, reuse: hotelMalam === currentHotel });
+          budgetTerpakai += biayaHotelMalam;
+          currentLat = hotelMalam.latitude;
+          currentLng = hotelMalam.longitude;
+        } else if (lastDest) {
+          currentLat = lastDest.latitude;
+          currentLng = lastDest.longitude;
+        }
+      } else if (!isLastDay && lastDest) {
+        currentLat = lastDest.latitude;
+        currentLng = lastDest.longitude;
+      }
+
+      budgetTerpakai += totalBiayaKunjungan + (isLastDay ? biayaPulang : 0);
+      totalMenitHari += isLastDay ? menitPulang : 0;
+
+      const totalBiayaHari = totalBiayaKunjungan +
+        (isLastDay ? biayaPulang : 0) +
+        biayaMakanHarian +
+        biayaHotelMalam;
 
       jadwal.push({
         hari,
-        total_biaya_hari        : totalBiayaHari,
-        total_biaya_kunjungan   : totalBiayaKunjungan,
-        biaya_transport_pulang  : biayaPulang,
-        total_waktu_menit       : totalMenitHari,
-        total_waktu_jam         : Math.round((totalMenitHari / 60) * 10) / 10,
-        // ─ Aturan 6.1: informasi rute kembali eksplisit untuk visualisasi peta ─
-        rute_kembali: {
-          dari: destinasiTerpilih.length > 0
-            ? { lat: destinasiTerpilih[destinasiTerpilih.length - 1].latitude,
-                lng: destinasiTerpilih[destinasiTerpilih.length - 1].longitude }
-            : { lat: start_latitude, lng: start_longitude },
-          ke          : { lat: start_latitude, lng: start_longitude },
-          jarak_km    : jarakPulangKm,
+        total_biaya_hari     : totalBiayaHari,
+        total_biaya_kunjungan: totalBiayaKunjungan,
+        biaya_transport_pulang: isLastDay ? biayaPulang : 0,
+        total_waktu_menit    : totalMenitHari,
+        total_waktu_jam      : Math.round((totalMenitHari / 60) * 10) / 10,
+        hotel_malam: hotelMalam ? {
+          id             : hotelMalam.id,
+          nama           : hotelMalam.name,
+          kota           : hotelMalam.city,
+          bintang        : hotelMalam.star_rating,
+          harga_per_malam: hotelMalam.price_per_night,
+          latitude       : hotelMalam.latitude,
+          longitude      : hotelMalam.longitude,
+        } : null,
+        posisi_awal: { lat: hari === 1 ? start_latitude : undefined, lng: hari === 1 ? start_longitude : undefined },
+        // rute_kembali ke titik awal HANYA pada hari terakhir
+        rute_kembali: isLastDay && lastDest ? {
+          dari       : { lat: lastDest.latitude, lng: lastDest.longitude },
+          ke         : { lat: start_latitude, lng: start_longitude },
+          jarak_km   : jarakPulangKm,
           estimasi_biaya: biayaPulang,
           waktu_tempuh_menit: menitPulang,
-        },
+        } : null,
         destinasi: detailDestinasi,
       });
     }
@@ -439,22 +544,30 @@ async function generateItinerary(req, res) {
         total_biaya_terpakai: budgetTerpakai,
         sisa_budget         : total_budget - budgetTerpakai,
         // ── Rincian biaya real ────────────────────────────────────────────
+        hotels_per_malam: hotelsPerMalam,
         rincian_biaya: {
-          hotel: {
-            nama            : hotelTerpilih ? hotelTerpilih.name : 'Estimasi penginapan',
-            kota            : hotelTerpilih ? hotelTerpilih.city : kotaAwal,
-            bintang         : hotelTerpilih ? hotelTerpilih.star_rating : 2,
-            harga_per_malam : biayaHotelPerMalam,
-            total           : biayaHotelTotal,
-            sumber          : hotelTerpilih ? (hotelTerpilih.source || 'data') : 'estimasi',
-          },
-          makan: {
+          hotel: include_hotel && jumlahMalam > 0 ? {
+            digunakan      : true,
+            jumlah_malam   : jumlahMalam,
+            total          : hotelsPerMalam.reduce((s, h) => s + h.hotel.price_per_night, 0),
+            detail_per_malam: hotelsPerMalam.map(h => ({
+              malam_ke       : h.hari,
+              nama           : h.hotel.name,
+              kota           : h.hotel.city,
+              bintang        : h.hotel.star_rating,
+              harga_per_malam: h.hotel.price_per_night,
+              latitude       : h.hotel.latitude,
+              longitude      : h.hotel.longitude,
+            })),
+          } : { digunakan: false },
+          makan: include_meals ? {
+            digunakan       : true,
             harga_per_hari  : biayaMakanHarian,
             total           : biayaMakanTotal,
             sumber          : biayaMakanHarian !== BIAYA_MAKAN_HARIAN_DEFAULT ? 'data_restoran' : 'estimasi',
-          },
+          } : { digunakan: false },
           wisata: {
-            total: budgetTerpakai - biayaHotelTotal - biayaMakanTotal,
+            total: Math.max(0, budgetTerpakai - hotelsPerMalam.reduce((s,h) => s + h.hotel.price_per_night, 0) - biayaMakanTotal),
           },
         },
         jadwal,

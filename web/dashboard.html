@@ -306,7 +306,7 @@
           });
           const hari1 = destPerHari[1]?.slice(0, 2).join(', ') || '—';
           return `
-        <div class="flex items-center gap-4 p-4 rounded-2xl bg-white/50 hover:bg-white/80 transition-all cursor-pointer group" onclick="window.location.href='map.html?id=${it.id}&rute=1'">
+        <div class="flex items-center gap-4 p-4 rounded-2xl bg-white/50 hover:bg-white/80 transition-all cursor-pointer group" onclick="sessionStorage.setItem('tp_view_id','${it.id}');window.location.href='generate.html'">
           <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-blue-500 flex items-center justify-center text-white font-display font-black text-lg shadow-md flex-shrink-0">
             <span class="material-symbols-outlined text-white" style="font-variation-settings:'FILL' 1">map</span>
           </div>
