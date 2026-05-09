@@ -1,29 +1,33 @@
 import { WARNA_RUTE } from '../constants/theme';
 
-// Peta rute itinerary dengan OSRM + turn-by-turn HUD + live navigation
-export function buildMapHtml(startLat, startLng, destinations, allDays = null) {
+// Peta rute itinerary — navigasi turn-by-turn lengkap seperti web
+export function buildMapHtml(startLat, startLng, destinations) {
+  const destJson = JSON.stringify(
+    destinations.map((d, i) => ({
+      lat: d.latitude,
+      lng: d.longitude,
+      nama: d.nama || d.name || `Destinasi ${i + 1}`,
+      idx: i,
+    }))
+  );
+
   const waypoints = [
     [startLat, startLng],
     ...destinations.map((d) => [d.latitude, d.longitude]),
     [startLat, startLng],
   ];
-
   const osrmCoords = waypoints.map((p) => `${p[1]},${p[0]}`).join(';');
   const straightLine = JSON.stringify(waypoints);
-
-  const markersJs = destinations
-    .map((d, i) => `
-      L.marker([${d.latitude},${d.longitude}],{
-        icon:L.divIcon({
-          className:'',
-          html:'<div style="background:#ea580c;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">${i + 1}</div>',
-          iconSize:[32,32],iconAnchor:[16,16],
-        })
-      }).addTo(map).bindPopup('<b>${(d.nama || d.name || 'Destinasi').replace(/'/g, "\\'")}</b>');
-    `).join('\n');
-
   const centerLat = waypoints.reduce((s, p) => s + p[0], 0) / waypoints.length;
   const centerLng = waypoints.reduce((s, p) => s + p[1], 0) / waypoints.length;
+
+  const markersJs = destinations.map((d, i) => `
+    L.marker([${d.latitude},${d.longitude}],{
+      icon:L.divIcon({className:'',
+        html:'<div style="background:#ea580c;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">${i + 1}</div>',
+        iconSize:[32,32],iconAnchor:[16,16]})
+    }).addTo(map).bindPopup('<b>${(d.nama || d.name || '').replace(/'/g, "\\'")}</b>');
+  `).join('\n');
 
   return `<!DOCTYPE html>
 <html>
@@ -35,63 +39,59 @@ export function buildMapHtml(startLat, startLng, destinations, allDays = null) {
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,sans-serif}
     #map{width:100%;height:100%}
-
-    /* Badge status OSRM */
-    #status{
-      position:absolute;top:10px;left:50%;transform:translateX(-50%);
-      background:rgba(13,148,136,0.92);color:#fff;
-      padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;
-      z-index:999;backdrop-filter:blur(8px);pointer-events:none;
-    }
+    #status{position:absolute;top:10px;left:50%;transform:translateX(-50%);
+      background:rgba(13,148,136,0.92);color:#fff;padding:6px 16px;
+      border-radius:20px;font-size:12px;font-weight:700;z-index:999;pointer-events:none}
     #status.hidden{display:none}
 
-    /* Turn-by-turn HUD */
-    #nav-hud{
-      display:none;position:absolute;bottom:0;left:0;right:0;z-index:950;
-    }
+    /* ── Navigation HUD (sama persis web) ── */
+    #nav-hud{display:none;position:absolute;bottom:0;left:0;right:0;z-index:950}
     #nav-hud.show{display:block}
-    #nav-header{
-      background:#1d4ed8;padding:7px 14px;
-      display:flex;justify-content:space-between;align-items:center;
-    }
-    #nav-live-dot{
-      width:8px;height:8px;background:#60a5fa;border-radius:50%;
-      display:inline-block;margin-right:6px;
-      animation:pulse 1.2s ease-in-out infinite;
-    }
-    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
-    #nav-instruksi{
-      background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);
+    #nav-header{background:#1d4ed8;padding:8px 14px;
+      display:flex;justify-content:space-between;align-items:center}
+    #nav-live-dot{width:8px;height:8px;background:#60a5fa;border-radius:50%;
+      display:inline-block;margin-right:6px;animation:pulse 1.2s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.5)}}
+    #nav-instruksi{background:rgba(255,255,255,.97);backdrop-filter:blur(20px);
       padding:12px 16px;display:flex;align-items:center;gap:14px;
-      border-top:1px solid rgba(0,0,0,0.06);
-    }
-    #nav-arrow{font-size:40px;min-width:46px;text-align:center;color:#1d4ed8;line-height:1}
-    #nav-dest-panel{
-      background:rgba(240,249,255,0.97);padding:8px 16px;
+      border-top:1px solid rgba(0,0,0,.06)}
+    #nav-arrow{font-size:44px;min-width:52px;text-align:center;color:#1d4ed8;line-height:1}
+    #nav-dest-panel{background:rgba(240,249,255,.97);padding:9px 16px;
       display:flex;justify-content:space-between;align-items:center;
-      border-top:1px solid rgba(13,148,136,0.12);
-    }
-    #nav-badge{
-      display:none;position:absolute;top:10px;right:10px;
-      background:#16a34a;color:#fff;padding:5px 12px;
-      border-radius:12px;font-size:11px;font-weight:700;z-index:999;
-    }
-    #nav-badge.show{display:block}
+      border-top:1px solid rgba(13,148,136,.12)}
+    #nav-dots{display:flex;gap:5px;align-items:center}
+
+    /* Toast tiba */
+    #toast{display:none;position:absolute;top:16px;left:50%;transform:translateX(-50%);
+      background:#0d9488;color:#fff;padding:12px 24px;border-radius:20px;
+      font-weight:700;font-size:14px;z-index:9999;text-align:center;
+      box-shadow:0 8px 24px rgba(13,148,136,.5)}
+    #toast.show{display:block;animation:slideIn .3s ease}
+    @keyframes slideIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+    /* Selesai overlay */
+    #done-overlay{display:none;position:absolute;inset:0;z-index:9998;
+      background:rgba(0,0,0,.4);align-items:center;justify-content:center}
+    #done-overlay.show{display:flex}
+    #done-card{background:linear-gradient(135deg,#7c3aed,#1d4ed8);color:#fff;
+      padding:28px 32px;border-radius:24px;text-align:center;max-width:280px}
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div id="status">Memuat rute...</div>
-  <div id="nav-badge">Navigasi Aktif</div>
 
-  <!-- Turn-by-turn HUD -->
+  <!-- Navigation HUD -->
   <div id="nav-hud">
     <div id="nav-header">
       <div style="display:flex;align-items:center">
         <span id="nav-live-dot"></span>
         <span style="color:#93c5fd;font-size:11px;font-weight:700;letter-spacing:1.5px">NAVIGASI AKTIF</span>
       </div>
-      <div id="nav-jarak-dest" style="color:#fff;font-size:16px;font-weight:800">—</div>
+      <div style="text-align:right">
+        <span id="nav-jarak-dest" style="color:#fff;font-size:16px;font-weight:800">—</span>
+        <span id="nav-eta" style="color:#93c5fd;font-size:11px;margin-left:8px">—</span>
+      </div>
     </div>
     <div id="nav-instruksi">
       <div id="nav-arrow">↑</div>
@@ -99,167 +99,235 @@ export function buildMapHtml(startLat, startLng, destinations, allDays = null) {
         <p id="nav-instruksi-teks" style="font-weight:700;color:#0f172a;font-size:15px;margin:0">Menuju tujuan...</p>
         <p id="nav-jarak-step" style="color:#64748b;font-size:12px;margin:0"></p>
       </div>
-      <div style="text-align:right;min-width:56px">
-        <p id="nav-waktu" style="font-weight:800;color:#0d9488;font-size:18px;margin:0">—</p>
-        <p style="color:#94a3b8;font-size:10px;margin:0">estimasi</p>
-      </div>
     </div>
     <div id="nav-dest-panel">
       <div>
         <p id="nav-nama-dest" style="font-weight:700;color:#0f766e;font-size:13px;margin:0">—</p>
         <p id="nav-stop-info" style="color:#94a3b8;font-size:11px;margin:0">—</p>
       </div>
+      <div id="nav-dots"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Done Overlay -->
+  <div id="done-overlay">
+    <div id="done-card">
+      <p style="font-size:36px;margin-bottom:8px">🎉</p>
+      <p style="font-size:20px;font-weight:800;margin-bottom:4px">Perjalanan Selesai!</p>
+      <p id="done-total" style="font-size:13px;opacity:.8;margin-bottom:20px">—</p>
+      <button onclick="document.getElementById('done-overlay').classList.remove('show')"
+        style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:10px 24px;
+        border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">Tutup</button>
     </div>
   </div>
 
   <script>
+    const DESTINATIONS = ${destJson};
+    const START = { lat:${startLat}, lng:${startLng} };
+
     const map = L.map('map',{zoomControl:true}).setView([${centerLat},${centerLng}],12);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      attribution:'© OpenStreetMap',maxZoom:19
-    }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
 
     // Marker titik awal
     L.marker([${startLat},${startLng}],{
-      icon:L.divIcon({
-        className:'',
+      icon:L.divIcon({className:'',
         html:'<div style="background:#0d9488;color:#fff;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.3);font-size:18px">🏠</div>',
-        iconSize:[38,38],iconAnchor:[19,19],
-      })
+        iconSize:[38,38],iconAnchor:[19,19]})
     }).addTo(map).bindPopup('<b>Titik Awal</b>');
 
     ${markersJs}
 
-    let routeLayer=null;
-    let isNavigating=false;
-    let userMarker=null,accuracyCircle=null;
+    let routeLayer = null;
 
-    // ── Garis lurus fallback ─────────────────────────────────────
-    function gambarGariLurus(){
-      if(routeLayer)map.removeLayer(routeLayer);
-      routeLayer=L.polyline(${straightLine},{
-        color:'#0d9488',weight:4,opacity:.6,dashArray:'8 6'
-      }).addTo(map);
-      map.fitBounds(routeLayer.getBounds(),{padding:[24,24]});
-      const s=document.getElementById('status');
-      s.textContent='Estimasi rute (offline)';
-      setTimeout(()=>s.classList.add('hidden'),2500);
-    }
-
-    // ── OSRM rute nyata ──────────────────────────────────────────
-    async function muatRute(){
-      const s=document.getElementById('status');
-      s.textContent='Memuat rute jalan...';
-      s.classList.remove('hidden');
-      try{
-        const ctrl=new AbortController();
-        const timer=setTimeout(()=>ctrl.abort(),9000);
-        const res=await fetch(
-          'https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson',
-          {signal:ctrl.signal}
-        );
-        clearTimeout(timer);
-        const data=await res.json();
-        if(data.code!=='Ok'||!data.routes?.[0])throw new Error();
-        const coords=data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
-        const jarak=(data.routes[0].distance/1000).toFixed(1);
-        const menit=Math.round(data.routes[0].duration/60);
-        if(routeLayer)map.removeLayer(routeLayer);
-        // Outline putih + garis teal (sama seperti web)
+    // ── OSRM rute keseluruhan ────────────────────────────────────────
+    async function muatRute() {
+      const s = document.getElementById('status');
+      s.textContent = 'Memuat rute jalan...'; s.classList.remove('hidden');
+      try {
+        const ctrl = new AbortController();
+        setTimeout(()=>ctrl.abort(), 9000);
+        const res = await fetch('https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson',{signal:ctrl.signal});
+        const data = await res.json();
+        if (data.code!=='Ok'||!data.routes?.[0]) throw new Error();
+        const coords = data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+        const km = (data.routes[0].distance/1000).toFixed(1);
+        const mnt = Math.round(data.routes[0].duration/60);
         L.polyline(coords,{color:'#fff',weight:8,opacity:.8}).addTo(map);
-        routeLayer=L.polyline(coords,{color:'#0d9488',weight:5,opacity:.9}).addTo(map);
+        routeLayer = L.polyline(coords,{color:'#0d9488',weight:5,opacity:.9}).addTo(map);
         map.fitBounds(routeLayer.getBounds(),{padding:[24,24]});
-        s.textContent=jarak+' km  ·  ~'+menit+' menit';
+        s.textContent = km+' km  ·  ~'+mnt+' menit';
         setTimeout(()=>s.classList.add('hidden'),3500);
-      }catch(e){
-        gambarGariLurus();
+      } catch(e) {
+        // Fallback garis lurus
+        routeLayer = L.polyline(${straightLine},{color:'#0d9488',weight:4,opacity:.6,dashArray:'8 6'}).addTo(map);
+        map.fitBounds(routeLayer.getBounds(),{padding:[24,24]});
+        s.textContent = 'Estimasi rute';
+        setTimeout(()=>s.classList.add('hidden'),2500);
       }
     }
     muatRute();
 
-    // ── Panah turn-by-turn ───────────────────────────────────────
-    const PANAH={
-      'depart':'↑','straight':'↑','arrive':'🏁','merge':'↑',
+    // ── Navigasi state ───────────────────────────────────────────────
+    const PANAH = {
+      'depart':'↑','straight':'↑','arrive':'🏁','merge':'↑','continue':'↑',
       'turn-right':'↪','turn-left':'↩','turn-slight right':'↗','turn-slight left':'↖',
-      'turn-sharp right':'↪','turn-sharp left':'↩','roundabout':'↻','continue':'↑',
+      'turn-sharp right':'↪','turn-sharp left':'↩','roundabout':'↻','rotary':'↻',
     };
-    function getArrow(step){
-      const t=step?.maneuver?.type||'',m=step?.maneuver?.modifier||'';
-      return PANAH[t+'-'+m]||PANAH[t]||'↑';
-    }
+    function getArrow(step){const t=step?.maneuver?.type||'',m=step?.maneuver?.modifier||'';return PANAH[t+'-'+m]||PANAH[t]||'↑';}
     function fmtJarak(m){return m>=1000?(m/1000).toFixed(1)+' km':Math.round(m)+' m';}
-    function fmtMenit(s){
-      const j=Math.floor(s/3600),m=Math.round((s%3600)/60);
-      return j>0?j+'j '+m+'mnt':(m<1?'< 1 mnt':'~'+m+' mnt');
+    function fmtMenit(s){const j=Math.floor(s/3600),m=Math.round((s%3600)/60);return j>0?j+'j '+m+'mnt':(m<1?'<1mnt':'~'+m+'mnt');}
+    function haversine(la1,lo1,la2,lo2){
+      const R=6371000,r=Math.PI/180,dLa=(la2-la1)*r,dLo=(lo2-lo1)*r;
+      const a=Math.sin(dLa/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     }
 
-    // ── Live Navigation ──────────────────────────────────────────
-    function startNavigation(){
-      isNavigating=true;
-      document.getElementById('nav-hud').classList.add('show');
-      document.getElementById('nav-badge').classList.add('show');
-    }
-    function stopNavigation(){
-      isNavigating=false;
-      document.getElementById('nav-hud').classList.remove('show');
-      document.getElementById('nav-badge').classList.remove('show');
+    let isNavigating = false;
+    let indeksNav = 0;
+    let userMarker = null, accuracyCircle = null;
+    let navRouteLayers = [];
+    let lastFetch = 0;
+    let sedangFetch = false;
+    const JARAK_TIBA = 200;   // meter
+    const THROTTLE   = 8000;  // ms
+
+    function renderDots() {
+      const el = document.getElementById('nav-dots');
+      el.innerHTML = DESTINATIONS.map((_,i)=>
+        '<div style="width:'+(i===indeksNav?20:8)+'px;height:8px;border-radius:999px;'+
+        'background:'+(i<indeksNav?'#0d9488':i===indeksNav?'#1d4ed8':'#cbd5e1')+';transition:all .3s"></div>'
+      ).join('');
     }
 
-    let lastFetch=0;
-    const THROTTLE=8000;
+    function updateInfoTujuan() {
+      if (indeksNav >= DESTINATIONS.length) return;
+      const dest = DESTINATIONS[indeksNav];
+      document.getElementById('nav-nama-dest').textContent = dest.nama;
+      document.getElementById('nav-stop-info').textContent = 'Stop '+(indeksNav+1)+' dari '+DESTINATIONS.length;
+      document.getElementById('nav-jarak-dest').textContent = '—';
+      document.getElementById('nav-eta').textContent = '—';
+      document.getElementById('nav-arrow').textContent = '↑';
+      document.getElementById('nav-instruksi-teks').textContent = 'Menghitung rute...';
+      document.getElementById('nav-jarak-step').textContent = '';
+      renderDots();
+    }
 
-    async function fetchTurnByTurn(lat,lng){
-      const now=Date.now();
-      if(now-lastFetch<THROTTLE)return;
-      lastFetch=now;
-      try{
-        const dest='${destinations.length > 0 ? destinations[0].longitude + ',' + destinations[0].latitude : startLng + ',' + startLat}';
-        const coords=lng+','+lat+';'+dest;
-        const res=await fetch(
-          'https://router.project-osrm.org/route/v1/driving/'+coords+'?steps=true&overview=false',
-          {signal:AbortSignal.timeout?AbortSignal.timeout(8000):undefined}
-        );
-        const data=await res.json();
-        if(!data.routes?.[0])return;
-        const route=data.routes[0];
-        const steps=(route.legs[0]?.steps||[]).filter(s=>s.distance>10);
-        const step=steps[0]||route.legs[0]?.steps?.[0];
-        if(step){
-          document.getElementById('nav-arrow').textContent=getArrow(step);
-          document.getElementById('nav-instruksi-teks').textContent=step.name||'Lanjut terus';
-          document.getElementById('nav-jarak-step').textContent='dalam '+fmtJarak(step.distance||0);
+    function tampilkanToast(pesan) {
+      const el = document.getElementById('toast');
+      el.textContent = pesan;
+      el.classList.add('show');
+      setTimeout(()=>el.classList.remove('show'),3500);
+    }
+
+    function tibaDiDestinasi() {
+      const dest = DESTINATIONS[indeksNav];
+      navRouteLayers.forEach(l=>map.removeLayer(l)); navRouteLayers=[];
+      tampilkanToast('✅ Tiba di '+dest.nama+'!');
+      indeksNav++;
+      if (indeksNav >= DESTINATIONS.length) {
+        setTimeout(()=>{
+          document.getElementById('done-total').textContent = 'Semua '+DESTINATIONS.length+' destinasi dikunjungi';
+          document.getElementById('done-overlay').classList.add('show');
+          document.getElementById('nav-hud').classList.remove('show');
+          isNavigating = false;
+          // Beritahu React Native
+          if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({type:'selesai',total:DESTINATIONS.length}));
+        },3000);
+        return;
+      }
+      updateInfoTujuan();
+    }
+
+    async function fetchNavRoute(lat, lng) {
+      if (indeksNav >= DESTINATIONS.length || sedangFetch) return;
+      const now = Date.now();
+      if (now - lastFetch < THROTTLE) return;
+      lastFetch = now; sedangFetch = true;
+
+      const dest = DESTINATIONS[indeksNav];
+      try {
+        const url = 'https://router.project-osrm.org/route/v1/driving/'+lng+','+lat+';'+dest.lng+','+dest.lat+'?steps=true&overview=full&geometries=geojson';
+        const ctrl = new AbortController();
+        setTimeout(()=>ctrl.abort(), 9000);
+        const res = await fetch(url,{signal:ctrl.signal});
+        const data = await res.json();
+        if (!data.routes?.[0]) return;
+        const route = data.routes[0];
+        const latlngs = route.geometry.coordinates.map(c=>[c[1],c[0]]);
+
+        // Hapus route nav lama
+        navRouteLayers.forEach(l=>map.removeLayer(l)); navRouteLayers=[];
+        const ol = L.polyline(latlngs,{color:'#fff',weight:10,opacity:.7}).addTo(map);
+        const rl = L.polyline(latlngs,{color:'#1d4ed8',weight:6,opacity:.95}).addTo(map);
+        navRouteLayers.push(ol,rl);
+
+        // Update HUD
+        document.getElementById('nav-jarak-dest').textContent = fmtJarak(route.distance);
+        document.getElementById('nav-eta').textContent = fmtMenit(route.duration);
+
+        const steps = (route.legs[0]?.steps||[]).filter(s=>s.distance>10);
+        const step = steps[0]||route.legs[0]?.steps?.[0];
+        if (step) {
+          document.getElementById('nav-arrow').textContent = getArrow(step);
+          document.getElementById('nav-instruksi-teks').textContent = step.name||'Lanjut terus';
+          document.getElementById('nav-jarak-step').textContent = 'dalam '+fmtJarak(step.distance||0);
         }
-        document.getElementById('nav-jarak-dest').textContent=fmtJarak(route.distance);
-        document.getElementById('nav-waktu').textContent=fmtMenit(route.duration);
-      }catch(e){}
+      } catch(e) {
+        // Diam saja jika gagal
+      } finally {
+        sedangFetch = false;
+      }
     }
 
-    function updateUserLocation(lat,lng,accuracy){
-      const latlng=[lat,lng];
-      if(!userMarker){
-        userMarker=L.circleMarker(latlng,{
-          radius:10,fillColor:'#1d4ed8',color:'#fff',
-          weight:3,opacity:1,fillOpacity:1,
+    // ── Dipanggil dari React Native ──────────────────────────────────
+    function startNavigation() {
+      isNavigating = true;
+      indeksNav = 0;
+      document.getElementById('nav-hud').classList.add('show');
+      updateInfoTujuan();
+    }
+
+    function stopNavigation() {
+      isNavigating = false;
+      navRouteLayers.forEach(l=>map.removeLayer(l)); navRouteLayers=[];
+      document.getElementById('nav-hud').classList.remove('show');
+    }
+
+    function updateUserLocation(lat, lng, accuracy) {
+      const latlng = [lat, lng];
+      if (!userMarker) {
+        userMarker = L.circleMarker(latlng,{
+          radius:10,fillColor:'#1d4ed8',color:'#fff',weight:3,fillOpacity:1,
         }).addTo(map).bindPopup('Posisi Anda');
-        if(accuracy){
-          accuracyCircle=L.circle(latlng,{
-            radius:accuracy,color:'#1d4ed8',
-            fillColor:'#1d4ed8',fillOpacity:.07,weight:1,
+        if (accuracy) {
+          accuracyCircle = L.circle(latlng,{
+            radius:accuracy,color:'#1d4ed8',fillColor:'#1d4ed8',fillOpacity:.07,weight:1,
           }).addTo(map);
         }
-      }else{
+      } else {
         userMarker.setLatLng(latlng);
-        if(accuracyCircle&&accuracy)accuracyCircle.setLatLng(latlng).setRadius(accuracy);
+        if (accuracyCircle&&accuracy) accuracyCircle.setLatLng(latlng).setRadius(accuracy);
       }
-      if(isNavigating){
-        map.setView(latlng,Math.max(map.getZoom(),15),{animate:true,duration:.8});
-        fetchTurnByTurn(lat,lng);
-      }
-    }
 
-    // Update info destinasi di HUD
-    function setNavDest(nama,stop){
-      document.getElementById('nav-nama-dest').textContent=nama||'—';
-      document.getElementById('nav-stop-info').textContent=stop||'—';
+      if (!isNavigating || indeksNav >= DESTINATIONS.length) return;
+
+      const dest = DESTINATIONS[indeksNav];
+      const jarak = haversine(lat, lng, dest.lat, dest.lng);
+
+      // Cek tiba
+      if (jarak <= JARAK_TIBA) { tibaDiDestinasi(); return; }
+
+      // Update live distance
+      document.getElementById('nav-jarak-dest').textContent = fmtJarak(jarak);
+
+      // Auto-center
+      map.panTo(latlng,{animate:true,duration:.5});
+
+      // Fetch turn-by-turn
+      fetchNavRoute(lat, lng);
     }
   </script>
 </body>
