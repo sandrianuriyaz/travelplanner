@@ -15,6 +15,7 @@ export default function DetailScreen({ nav, params }) {
   const { id } = params;
   const [selectedDay, setSelectedDay] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [mapExpanded, setMapExpanded] = useState(false);
   const webViewRef = useRef(null);
   const locationSub = useRef(null);
   const { detail, fetchDetail, isLoadingDetail, detailError } = useItineraryStore();
@@ -127,9 +128,9 @@ export default function DetailScreen({ nav, params }) {
         </View>
       )}
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Peta + Navigasi Live */}
-        <View style={styles.mapWrap}>
+      {/* Peta Fullscreen Overlay */}
+      {mapExpanded && (
+        <View style={styles.mapFullscreen}>
           <WebView
             ref={webViewRef}
             source={{ html: mapHtml }}
@@ -137,17 +138,46 @@ export default function DetailScreen({ nav, params }) {
             javaScriptEnabled
             scrollEnabled={false}
           />
+          <TouchableOpacity style={styles.collapseBtn} onPress={() => setMapExpanded(false)} activeOpacity={0.85}>
+            <Ionicons name="contract" size={18} color="#fff" />
+            <Text style={styles.collapseBtnText}>Kecilkan</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.navBtn, isNavigating && styles.navBtnStop]}
             onPress={isNavigating ? selesaiNavigasi : mulaiNavigasi}
             activeOpacity={0.9}
           >
             <Ionicons name={isNavigating ? 'stop-circle' : 'navigate'} size={18} color="#fff" />
-            <Text style={styles.navBtnText}>
-              {isNavigating ? 'Selesai Navigasi' : 'Navigasi Live'}
-            </Text>
+            <Text style={styles.navBtnText}>{isNavigating ? 'Selesai' : 'Navigasi Live'}</Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Peta normal */}
+        {!mapExpanded && (
+          <View style={styles.mapWrap}>
+            <WebView
+              ref={webViewRef}
+              source={{ html: mapHtml }}
+              style={{ flex: 1 }}
+              javaScriptEnabled
+              scrollEnabled={false}
+            />
+            <TouchableOpacity style={styles.expandBtn} onPress={() => setMapExpanded(true)} activeOpacity={0.85}>
+              <Ionicons name="expand" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.navBtn, isNavigating && styles.navBtnStop]}
+              onPress={isNavigating ? selesaiNavigasi : mulaiNavigasi}
+              activeOpacity={0.9}
+            >
+              <Ionicons name={isNavigating ? 'stop-circle' : 'navigate'} size={18} color="#fff" />
+              <Text style={styles.navBtnText}>{isNavigating ? 'Selesai' : 'Navigasi Live'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {mapExpanded && <View style={{ height: 12 }} />}
 
         {/* Daftar Destinasi */}
         <Text style={styles.sectionTitle}>Destinasi Hari {hari.hari}</Text>
@@ -227,15 +257,31 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
 
+  mapFullscreen: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999,
+  },
   mapWrap: {
     height: 260, margin: 12, borderRadius: RADIUS.lg,
     overflow: 'hidden', position: 'relative', ...SHADOW.small,
   },
+  expandBtn: {
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  collapseBtn: {
+    position: 'absolute', top: 52, right: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+  },
+  collapseBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   navBtn: {
-    position: 'absolute', bottom: 12, alignSelf: 'center',
+    position: 'absolute', bottom: 20, alignSelf: 'center',
     backgroundColor: COLORS.primary,
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24,
+    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24,
     ...SHADOW.medium,
   },
   navBtnStop: { backgroundColor: COLORS.error },
