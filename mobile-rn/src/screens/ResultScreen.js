@@ -104,12 +104,15 @@ export default function ResultScreen({ nav, params }) {
         <Text style={styles.headerTitle}>Rencana Perjalanan</Text>
       </View>
 
-      {/* Budget Summary — hitung dari data jadwal agar akurat */}
+      {/* Budget Summary — gunakan rincian_biaya dari backend jika tersedia */}
       {(() => {
-        const totalMakan     = 100000 * itinerary.duration_days;
-        const totalTiket     = jadwal.reduce((s, h) =>
+        const rb           = itinerary.rincian_biaya;
+        const totalMakan   = rb ? rb.makan.total    : 100000 * itinerary.duration_days;
+        const totalHotel   = rb ? rb.hotel.total    : 0;
+        const totalWisata  = rb ? rb.wisata.total   : itinerary.total_biaya_terpakai - totalMakan;
+        const totalTiket   = jadwal.reduce((s, h) =>
           s + h.destinasi.reduce((ss, d) => ss + (d.harga_tiket || 0), 0), 0);
-        const totalTransport = Math.max(0, itinerary.total_biaya_terpakai - totalMakan - totalTiket);
+        const totalTransport = Math.max(0, totalWisata - totalTiket);
 
         return (
           <>
@@ -124,9 +127,21 @@ export default function ResultScreen({ nav, params }) {
                 <Text style={styles.budgetVal}>{formatRupiah(itinerary.total_budget)}</Text>
               </View>
               <View style={styles.budgetDivider} />
+              {totalHotel > 0 && (
+                <>
+                  <View style={styles.budgetItem}>
+                    <Text style={styles.budgetLabel}>Hotel</Text>
+                    <Text style={[styles.budgetVal, { color: '#7c3aed' }]}>
+                      {formatRupiah(totalHotel)}
+                    </Text>
+                    <Text style={styles.budgetNote}>{itinerary.duration_days}×malam</Text>
+                  </View>
+                  <View style={styles.budgetDivider} />
+                </>
+              )}
               <View style={styles.budgetItem}>
                 <Text style={styles.budgetLabel}>Makan</Text>
-                <Text style={[styles.budgetVal, { color: '#7c3aed' }]}>
+                <Text style={[styles.budgetVal, { color: '#0891b2' }]}>
                   {formatRupiah(totalMakan)}
                 </Text>
                 <Text style={styles.budgetNote}>{itinerary.duration_days} hari</Text>
@@ -141,7 +156,7 @@ export default function ResultScreen({ nav, params }) {
               <View style={styles.budgetDivider} />
               <View style={styles.budgetItem}>
                 <Text style={styles.budgetLabel}>Transport</Text>
-                <Text style={[styles.budgetVal, { color: '#0284c7' }]}>
+                <Text style={[styles.budgetVal, { color: '#16a34a' }]}>
                   {formatRupiah(totalTransport)}
                 </Text>
               </View>
@@ -153,10 +168,26 @@ export default function ResultScreen({ nav, params }) {
                 </Text>
               </View>
             </ScrollView>
+            {/* Info hotel */}
+            {itinerary.rincian_biaya?.hotel && (
+              <View style={styles.hotelNote}>
+                <Ionicons name="bed-outline" size={14} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.hotelName} numberOfLines={1}>
+                    {itinerary.rincian_biaya.hotel.nama}
+                  </Text>
+                  <Text style={styles.hotelSub}>
+                    {'⭐'.repeat(Math.round(itinerary.rincian_biaya.hotel.bintang))}
+                    {' · '}{formatRupiah(itinerary.rincian_biaya.hotel.harga_per_malam)}/malam
+                    {itinerary.rincian_biaya.hotel.sumber === 'estimasi' ? ' (estimasi)' : ''}
+                  </Text>
+                </View>
+              </View>
+            )}
             <View style={styles.makanNote}>
               <Ionicons name="information-circle-outline" size={12} color={COLORS.textHint} />
               <Text style={styles.makanNoteText}>
-                Makan Rp100.000/hari · Tiket masuk per destinasi · Transport pergi-pulang
+                Makan {itinerary.rincian_biaya?.makan?.sumber === 'data_restoran' ? '(rata-rata restoran lokal)' : '(estimasi)'} · Tiket masuk · Transport pergi-pulang
               </Text>
             </View>
           </>
@@ -291,16 +322,24 @@ const styles = StyleSheet.create({
   budgetBar: {
     backgroundColor: '#fff',
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    height: 72,
   },
   budgetBarContent: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 10, paddingHorizontal: 8,
+    paddingVertical: 10, paddingHorizontal: 8, height: 72,
   },
   budgetItem: { alignItems: 'center', paddingHorizontal: 14 },
   budgetDivider: { width: 1, height: 32, backgroundColor: COLORS.border },
   budgetLabel: { fontSize: 9, color: COLORS.textHint, marginBottom: 2, fontWeight: '700', textTransform: 'uppercase', textAlign: 'center' },
   budgetVal: { fontSize: 12, fontWeight: '800', color: COLORS.primary, textAlign: 'center' },
   budgetNote: { fontSize: 9, color: COLORS.textHint, marginTop: 1 },
+  hotelNote: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#f0fdf4', paddingHorizontal: 12, paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  hotelName: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  hotelSub:  { fontSize: 11, color: COLORS.textHint, marginTop: 1 },
   makanNote: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: '#f8fafc', paddingHorizontal: 12, paddingVertical: 7,

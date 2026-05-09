@@ -62,3 +62,33 @@ model ItineraryDetail {
 
   @@map("itinerary_details")
 }
+
+model Hotel {
+  id             Int     @id @default(autoincrement())
+  name           String  @db.VarChar(300)
+  city           String  @db.VarChar(100)
+  latitude       Float
+  longitude      Float
+  star_rating    Float   @default(3)
+  price_per_night Int
+  user_rating    Float?
+  features       String? @db.Text
+  source         String? @db.VarChar(50)
+
+  @@map("hotels")
+}
+
+model Restaurant {
+  id               Int     @id @default(autoincrement())
+  name             String  @db.VarChar(300)
+  city             String  @db.VarChar(100)
+  latitude         Float
+  longitude        Float
+  cuisines         String? @db.VarChar(200)
+  avg_cost_for_two Int
+  price_range      Int     @default(2)
+  rating           Float?
+  source           String? @db.VarChar(50)
+
+  @@map("restaurants")
+}
