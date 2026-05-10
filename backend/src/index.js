@@ -36,8 +36,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ berhasil: false, pesan: 'Terjadi kesalahan pada server.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
-});
+// Jalankan server lokal hanya jika bukan di Vercel
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
+  });
+}
 
-// nodemon restart trigger
+module.exports = app;
