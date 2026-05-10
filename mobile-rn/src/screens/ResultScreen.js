@@ -249,115 +249,66 @@ export default function ResultScreen({ nav, params }) {
         <Text style={styles.headerTitle}>Rencana Perjalanan</Text>
       </View>
 
+      {/* ── Budget Bar (sticky) ── */}
       {(() => {
         const rb           = itinerary.rincian_biaya || {};
         const hotelData    = rb.hotel?.digunakan ? rb.hotel : null;
-        const makanData    = rb.makan?.digunakan ? rb.makan : null;
         const totalHotel   = hotelData?.total || 0;
-        const totalMakan   = makanData?.total || (100000 * itinerary.duration_days);
+        const totalMakan   = rb.makan?.digunakan ? rb.makan.total : 100000 * itinerary.duration_days;
         const totalWisata  = rb.wisata?.total || 0;
         const totalTiket   = jadwal.reduce((s, h) =>
           s + h.destinasi.reduce((ss, d) => ss + (d.harga_tiket || 0), 0), 0);
         const totalTransport = Math.max(0, totalWisata - totalTiket);
-        const adaFasilitas = hotelData || makanData;
-
         return (
-          <>
-            {/* Budget Bar */}
-            <ScrollView
-              horizontal showsHorizontalScrollIndicator={false}
-              style={styles.budgetBar} contentContainerStyle={styles.budgetBarContent}
-            >
-              <View style={styles.budgetItem}>
-                <Text style={styles.budgetLabel}>Anggaran</Text>
-                <Text style={styles.budgetVal}>{formatRupiah(itinerary.total_budget)}</Text>
-              </View>
-              {totalHotel > 0 && (<>
-                <View style={styles.budgetDivider} />
-                <View style={styles.budgetItem}>
-                  <Text style={styles.budgetLabel}>Hotel</Text>
-                  <Text style={[styles.budgetVal, { color: '#7c3aed' }]}>{formatRupiah(totalHotel)}</Text>
-                  <Text style={styles.budgetNote}>{hotelData.jumlah_malam} malam</Text>
-                </View>
-              </>)}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            style={styles.budgetBar} contentContainerStyle={styles.budgetBarContent}>
+            <View style={styles.budgetItem}>
+              <Text style={styles.budgetLabel}>Anggaran</Text>
+              <Text style={styles.budgetVal}>{formatRupiah(itinerary.total_budget)}</Text>
+            </View>
+            {totalHotel > 0 && (<>
               <View style={styles.budgetDivider} />
               <View style={styles.budgetItem}>
-                <Text style={styles.budgetLabel}>Makan</Text>
-                <Text style={[styles.budgetVal, { color: '#0891b2' }]}>{formatRupiah(totalMakan)}</Text>
-                <Text style={styles.budgetNote}>{itinerary.duration_days} hari</Text>
+                <Text style={styles.budgetLabel}>Hotel</Text>
+                <Text style={[styles.budgetVal, { color: '#7c3aed' }]}>{formatRupiah(totalHotel)}</Text>
+                <Text style={styles.budgetNote}>{hotelData.jumlah_malam} malam</Text>
               </View>
-              <View style={styles.budgetDivider} />
-              <View style={styles.budgetItem}>
-                <Text style={styles.budgetLabel}>Tiket</Text>
-                <Text style={[styles.budgetVal, { color: COLORS.accent }]}>{formatRupiah(totalTiket)}</Text>
-              </View>
-              <View style={styles.budgetDivider} />
-              <View style={styles.budgetItem}>
-                <Text style={styles.budgetLabel}>Transport</Text>
-                <Text style={[styles.budgetVal, { color: '#16a34a' }]}>{formatRupiah(totalTransport)}</Text>
-              </View>
-              <View style={styles.budgetDivider} />
-              <View style={styles.budgetItem}>
-                <Text style={styles.budgetLabel}>Sisa</Text>
-                <Text style={[styles.budgetVal, { color: COLORS.success }]}>{formatRupiah(itinerary.sisa_budget)}</Text>
-              </View>
-            </ScrollView>
-
-            {/* Fasilitas Terpilih Card — tampil hanya jika ada hotel/makan */}
-            {adaFasilitas && (
-              <View style={styles.fasilitasCard}>
-                <Text style={styles.fasilitasTitle}>Fasilitas Terpilih</Text>
-                {hotelData && (
-                  <View style={styles.fasilitasRow}>
-                    <View style={styles.fasilitasIcon}>
-                      <Text style={{ fontSize: 16 }}>🏨</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.fasilitasName} numberOfLines={1}>{hotelData.nama || 'Hotel'}</Text>
-                      <Text style={styles.fasilitasSub}>
-                        {'⭐'.repeat(Math.round(hotelData.bintang || 3))}
-                        {' · '}{hotelData.jumlah_malam} malam × {formatRupiah(hotelData.harga_per_malam)}
-                      </Text>
-                    </View>
-                    <Text style={styles.fasilitasTotal}>{formatRupiah(totalHotel)}</Text>
-                  </View>
-                )}
-                {makanData && (
-                  <View style={[styles.fasilitasRow, { marginTop: hotelData ? 8 : 0 }]}>
-                    <View style={styles.fasilitasIcon}>
-                      <Text style={{ fontSize: 16 }}>🍽</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.fasilitasName}>Estimasi Makan</Text>
-                      <Text style={styles.fasilitasSub}>
-                        {itinerary.duration_days} hari × {formatRupiah(makanData.harga_per_hari)}
-                      </Text>
-                    </View>
-                    <Text style={[styles.fasilitasTotal, { color: '#0891b2' }]}>{formatRupiah(totalMakan)}</Text>
-                  </View>
-                )}
-                <View style={styles.fasilitasDestRow}>
-                  <Text style={{ fontSize: 16 }}>🗺</Text>
-                  <Text style={styles.fasilitasDestLabel}>Budget Destinasi</Text>
-                  <Text style={styles.fasilitasDestVal}>{formatRupiah(totalWisata)}</Text>
-                </View>
-              </View>
-            )}
-          </>
+            </>)}
+            <View style={styles.budgetDivider} />
+            <View style={styles.budgetItem}>
+              <Text style={styles.budgetLabel}>Makan</Text>
+              <Text style={[styles.budgetVal, { color: '#0891b2' }]}>{formatRupiah(totalMakan)}</Text>
+              <Text style={styles.budgetNote}>{itinerary.duration_days} hari</Text>
+            </View>
+            <View style={styles.budgetDivider} />
+            <View style={styles.budgetItem}>
+              <Text style={styles.budgetLabel}>Tiket</Text>
+              <Text style={[styles.budgetVal, { color: COLORS.accent }]}>{formatRupiah(totalTiket)}</Text>
+            </View>
+            <View style={styles.budgetDivider} />
+            <View style={styles.budgetItem}>
+              <Text style={styles.budgetLabel}>Transport</Text>
+              <Text style={[styles.budgetVal, { color: '#16a34a' }]}>{formatRupiah(totalTransport)}</Text>
+            </View>
+            <View style={styles.budgetDivider} />
+            <View style={styles.budgetItem}>
+              <Text style={styles.budgetLabel}>Sisa</Text>
+              <Text style={[styles.budgetVal, { color: COLORS.success }]}>{formatRupiah(itinerary.sisa_budget)}</Text>
+            </View>
+          </ScrollView>
         );
       })()}
 
+      {/* ── Tabs hari (sticky) ── */}
       {jadwal.length > 1 && (
         <View style={styles.tabWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
             {jadwal.map((j, i) => {
               const c = WARNA_RUTE[i % WARNA_RUTE.length];
               return (
-                <TouchableOpacity
-                  key={i}
+                <TouchableOpacity key={i}
                   style={[styles.tabPill, selectedDay === i && { backgroundColor: c, borderColor: c }]}
-                  onPress={() => setSelectedDay(i)}
-                >
+                  onPress={() => setSelectedDay(i)}>
                   <Text style={[styles.tabPillText, selectedDay === i && styles.tabPillTextActive]}>
                     Hari {j.hari}
                   </Text>
@@ -368,7 +319,52 @@ export default function ResultScreen({ nav, params }) {
         </View>
       )}
 
+      {/* ── Konten scrollable ── */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Fasilitas Terpilih Card */}
+        {(() => {
+          const rb       = itinerary.rincian_biaya || {};
+          const hotelData = rb.hotel?.digunakan ? rb.hotel : null;
+          const makanData = rb.makan?.digunakan ? rb.makan : null;
+          const totalHotel = hotelData?.total || 0;
+          const totalMakan = makanData?.total || 0;
+          const totalWisata = rb.wisata?.total || 0;
+          if (!hotelData && !makanData) return null;
+          return (
+            <View style={styles.fasilitasCard}>
+              <Text style={styles.fasilitasTitle}>Fasilitas Terpilih</Text>
+              {hotelData && (
+                <View style={styles.fasilitasRow}>
+                  <View style={styles.fasilitasIcon}><Text style={{ fontSize: 16 }}>🏨</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.fasilitasName} numberOfLines={1}>{hotelData.nama || 'Hotel'}</Text>
+                    <Text style={styles.fasilitasSub}>
+                      {'⭐'.repeat(Math.round(hotelData.bintang || 3))}
+                      {' · '}{hotelData.jumlah_malam} malam × {formatRupiah(hotelData.harga_per_malam)}
+                    </Text>
+                  </View>
+                  <Text style={styles.fasilitasTotal}>{formatRupiah(totalHotel)}</Text>
+                </View>
+              )}
+              {makanData && (
+                <View style={[styles.fasilitasRow, { marginTop: hotelData ? 8 : 0 }]}>
+                  <View style={styles.fasilitasIcon}><Text style={{ fontSize: 16 }}>🍽</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.fasilitasName}>Estimasi Makan</Text>
+                    <Text style={styles.fasilitasSub}>{itinerary.duration_days} hari × {formatRupiah(makanData.harga_per_hari)}</Text>
+                  </View>
+                  <Text style={[styles.fasilitasTotal, { color: '#0891b2' }]}>{formatRupiah(totalMakan)}</Text>
+                </View>
+              )}
+              <View style={styles.fasilitasDestRow}>
+                <Text style={{ fontSize: 16 }}>🗺</Text>
+                <Text style={styles.fasilitasDestLabel}>Budget Destinasi</Text>
+                <Text style={styles.fasilitasDestVal}>{formatRupiah(totalWisata)}</Text>
+              </View>
+            </View>
+          );
+        })()}
+
         {!mapExpanded && (
           <View style={styles.mapWrap}>
             <WebView
