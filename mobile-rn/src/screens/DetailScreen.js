@@ -11,6 +11,88 @@ import useItineraryStore from '../store/itineraryStore';
 import { formatRupiah, formatTanggal } from '../utils/currency';
 import { buildMapHtml } from '../utils/mapHtml';
 
+function fmtJam(totalMenit) {
+  const h = Math.floor(totalMenit / 60);
+  const m = totalMenit % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function RundownSection({ destinations, isFirstDay }) {
+  const [open, setOpen] = useState(false);
+  if (!destinations.length) return null;
+
+  const MULAI = 8 * 60, SELESAI = 20 * 60, ISTIRAHAT = 15;
+  const baseDur  = destinations.map(() => 60);
+  const totalBase = baseDur.reduce((s, v) => s + v, 0);
+  const totalTravel = destinations.length * 30;
+  const available = SELESAI - MULAI - totalTravel - destinations.length * ISTIRAHAT;
+  const extra = available > totalBase
+    ? Math.floor((available - totalBase) / destinations.length / 5) * 5 : 0;
+
+  const stops = [];
+  let cursor = MULAI;
+  destinations.forEach((d, i) => {
+    const travelMnt = 30;
+    const arrMnt = cursor + travelMnt;
+    const durMnt = baseDur[i] + extra;
+    stops.push({ nama: d.nama, travelMnt, arrivalMnt: arrMnt, departureMnt: arrMnt + durMnt, durMnt });
+    cursor = arrMnt + durMnt + ISTIRAHAT;
+  });
+
+  return (
+    <View style={rdStyles.wrap}>
+      <TouchableOpacity style={rdStyles.header} onPress={() => setOpen(v => !v)} activeOpacity={0.8}>
+        <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+        <Text style={rdStyles.headerText}>Rundown Perjalanan</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.textHint} />
+      </TouchableOpacity>
+      {open && (
+        <View style={rdStyles.body}>
+          <View style={rdStyles.startRow}>
+            <View style={rdStyles.dot} />
+            <Text style={rdStyles.startLabel}>08:00 · {isFirstDay ? 'Titik Awal' : 'Hotel'}</Text>
+          </View>
+          {stops.map((s, i) => (
+            <View key={i}>
+              <View style={rdStyles.travelRow}>
+                <View style={rdStyles.line} />
+                <Text style={rdStyles.travelText}>🚗 {s.travelMnt} mnt (estimasi)</Text>
+              </View>
+              <View style={rdStyles.stopRow}>
+                <View style={[rdStyles.dot, rdStyles.dotDest]} />
+                <View style={rdStyles.stopInfo}>
+                  <Text style={rdStyles.stopName}>{s.nama}</Text>
+                  <Text style={rdStyles.stopTime}>
+                    {fmtJam(s.arrivalMnt)} – {fmtJam(s.departureMnt)} · {s.durMnt} mnt
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const rdStyles = StyleSheet.create({
+  wrap: { backgroundColor: '#fff', borderRadius: RADIUS.md, marginHorizontal: 12, marginTop: 10, ...SHADOW.small, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14 },
+  headerText: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  body: { paddingHorizontal: 16, paddingBottom: 16 },
+  startRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  startLabel: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
+  travelRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 2 },
+  line: { width: 2, height: 20, backgroundColor: COLORS.border, marginLeft: 5 },
+  travelText: { fontSize: 12, color: COLORS.textHint },
+  stopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 4 },
+  dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.primary, marginTop: 3 },
+  dotDest: { backgroundColor: COLORS.accent },
+  stopInfo: { flex: 1 },
+  stopName: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
+  stopTime: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+});
+
 export default function DetailScreen({ nav, params }) {
   const { id } = params;
   const [selectedDay, setSelectedDay] = useState(0);
@@ -114,17 +196,18 @@ export default function DetailScreen({ nav, params }) {
       {jadwal.length > 1 && (
         <View style={styles.tabWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
-            {jadwal.map((j, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[styles.tabPill, selectedDay === i && styles.tabPillActive]}
-                onPress={() => setSelectedDay(i)}
-              >
-                <Text style={[styles.tabPillText, selectedDay === i && styles.tabPillTextActive]}>
-                  Hari {j.hari}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {jadwal.map((j, i) => {
+              const c = WARNA_RUTE[i % WARNA_RUTE.length];
+              return (
+                <TouchableOpacity key={i}
+                  style={[styles.tabPill, selectedDay === i && { backgroundColor: c, borderColor: c }]}
+                  onPress={() => setSelectedDay(i)}>
+                  <Text style={[styles.tabPillText, selectedDay === i && styles.tabPillTextActive]}>
+                    Hari {j.hari}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -181,7 +264,7 @@ export default function DetailScreen({ nav, params }) {
         {mapExpanded && <View style={{ height: 12 }} />}
 
         {/* Daftar Destinasi */}
-        <Text style={styles.sectionTitle}>Destinasi Hari {hari.hari}</Text>
+        <Text style={[styles.sectionTitle, { color: warna }]}>Destinasi Hari {hari.hari}</Text>
         {destinations.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="location-outline" size={32} color={COLORS.textHint} />
@@ -189,8 +272,8 @@ export default function DetailScreen({ nav, params }) {
           </View>
         ) : (
           destinations.map((dest, i) => (
-            <View key={i} style={styles.destCard}>
-              <View style={styles.destNum}>
+            <View key={i} style={[styles.destCard, { borderLeftWidth: 3, borderLeftColor: warna }]}>
+              <View style={[styles.destNum, { backgroundColor: warna }]}>
                 <Text style={styles.destNumText}>{dest.urutan}</Text>
               </View>
               <View style={styles.destBody}>
@@ -198,14 +281,14 @@ export default function DetailScreen({ nav, params }) {
                 <Text style={styles.destMeta}>{dest.kategori} · {dest.kota}</Text>
                 <View style={styles.costRow}>
                   <Ionicons name="receipt-outline" size={13} color={COLORS.primary} />
-                  <Text style={styles.costText}>
-                    Estimasi: {formatRupiah(dest.estimated_cost)}
-                  </Text>
+                  <Text style={styles.costText}>Estimasi: {formatRupiah(dest.estimated_cost)}</Text>
                 </View>
               </View>
             </View>
           ))
         )}
+
+        <RundownSection destinations={destinations} isFirstDay={selectedDay === 0} />
 
         <View style={{ height: 32 }} />
       </ScrollView>
