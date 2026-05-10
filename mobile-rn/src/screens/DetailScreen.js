@@ -6,7 +6,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { COLORS, SHADOW, RADIUS } from '../constants/theme';
+import { COLORS, SHADOW, RADIUS, WARNA_RUTE } from '../constants/theme';
 import useItineraryStore from '../store/itineraryStore';
 import { formatRupiah, formatTanggal } from '../utils/currency';
 import { buildMapHtml } from '../utils/mapHtml';
@@ -76,7 +76,8 @@ export default function DetailScreen({ nav, params }) {
   const hari = jadwal[selectedDay] || {};
   const destinations = hari.destinasi || [];
   const mapDest = destinations.map((d) => ({ latitude: d.latitude, longitude: d.longitude, nama: d.nama }));
-  const mapHtml = buildMapHtml(detail.start_latitude, detail.start_longitude, mapDest);
+  const warna = WARNA_RUTE[selectedDay % WARNA_RUTE.length];
+  const mapHtml = buildMapHtml(detail.start_latitude, detail.start_longitude, mapDest, warna, null);
 
   return (
     <View style={styles.container}>

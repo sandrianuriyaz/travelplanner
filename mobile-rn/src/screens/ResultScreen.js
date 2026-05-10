@@ -6,9 +6,144 @@ import {
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { COLORS, SHADOW, RADIUS } from '../constants/theme';
+import { COLORS, SHADOW, RADIUS, WARNA_RUTE } from '../constants/theme';
 import { formatRupiah, formatMenit } from '../utils/currency';
 import { buildMapHtml } from '../utils/mapHtml';
+
+function fmtWaktu(totalMenit) {
+  const h = Math.floor(totalMenit / 60);
+  const m = totalMenit % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function hitungRundown(destinations, hasHotel, isFirstDay) {
+  const START_MENIT = 8 * 60;
+  const END_MENIT = 20 * 60;
+  const totalSlot = END_MENIT - START_MENIT;
+
+  const totalTravel = destinations.reduce((s, d) => s + (d.waktu_tempuh_menit || 0), 0);
+  const baseDurasi = destinations.map((d) => d.durasi_kunjungan_menit || 60);
+  const totalBase = baseDurasi.reduce((s, v) => s + v, 0);
+  const hotelTransfer = hasHotel ? 30 : 0;
+  const slackTotal = Math.max(0, totalSlot - totalTravel - totalBase - hotelTransfer);
+  const slackPer = destinations.length > 0 ? Math.floor(slackTotal / destinations.length) : 0;
+
+  const stops = [];
+  let cursor = START_MENIT;
+
+  destinations.forEach((d, i) => {
+    const travelMnt = d.waktu_tempuh_menit || 0;
+    const arrMnt = cursor + travelMnt;
+    const durMnt = baseDurasi[i] + slackPer;
+    const depMnt = arrMnt + durMnt;
+
+    stops.push({
+      nama: d.nama,
+      travelMnt,
+      jarak: d.jarak_dari_sebelumnya_km,
+      arrivalMnt: arrMnt,
+      departureMnt: depMnt,
+      durMnt,
+    });
+
+    cursor = depMnt;
+  });
+
+  return { stops, hotelCheckin: hasHotel ? fmtWaktu(cursor + hotelTransfer) : null };
+}
+
+function RundownSection({ destinations, hotelMalam, isFirstDay }) {
+  const [open, setOpen] = useState(false);
+  const hasHotel = !!hotelMalam;
+  const hasTiming = destinations.length > 0 && destinations[0].waktu_tempuh_menit !== undefined;
+
+  if (!hasTiming) return null;
+
+  const { stops, hotelCheckin } = hitungRundown(destinations, hasHotel, isFirstDay);
+
+  return (
+    <View style={rdStyles.wrap}>
+      <TouchableOpacity style={rdStyles.header} onPress={() => setOpen((v) => !v)} activeOpacity={0.8}>
+        <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+        <Text style={rdStyles.headerText}>Rundown Perjalanan</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.textHint} />
+      </TouchableOpacity>
+
+      {open && (
+        <View style={rdStyles.body}>
+          <View style={rdStyles.startRow}>
+            <View style={rdStyles.dot} />
+            <Text style={rdStyles.startLabel}>08:00 · {isFirstDay ? 'Titik Awal' : 'Hotel'}</Text>
+          </View>
+
+          {stops.map((s, i) => (
+            <View key={i}>
+              <View style={rdStyles.travelRow}>
+                <View style={rdStyles.line} />
+                <Text style={rdStyles.travelText}>
+                  🚗 {s.travelMnt} mnt{s.jarak != null ? ` · ${Number(s.jarak).toFixed(1)} km` : ''}
+                </Text>
+              </View>
+              <View style={rdStyles.stopRow}>
+                <View style={[rdStyles.dot, rdStyles.dotDest]} />
+                <View style={rdStyles.stopInfo}>
+                  <Text style={rdStyles.stopName}>{s.nama}</Text>
+                  <Text style={rdStyles.stopTime}>
+                    {fmtWaktu(s.arrivalMnt)} – {fmtWaktu(s.departureMnt)} · {s.durMnt} mnt
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))}
+
+          {hasHotel && hotelCheckin && (
+            <>
+              <View style={rdStyles.travelRow}>
+                <View style={rdStyles.line} />
+                <Text style={rdStyles.travelText}>🚗 30 mnt · menuju hotel</Text>
+              </View>
+              <View style={rdStyles.stopRow}>
+                <View style={[rdStyles.dot, rdStyles.dotHotel]} />
+                <View style={rdStyles.stopInfo}>
+                  <Text style={rdStyles.stopName}>🏨 {hotelMalam.nama}</Text>
+                  <Text style={rdStyles.stopTime}>Check-in ~{hotelCheckin}</Text>
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const rdStyles = StyleSheet.create({
+  wrap: {
+    backgroundColor: '#fff', borderRadius: RADIUS.md,
+    marginHorizontal: 12, marginTop: 10, ...SHADOW.small, overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    padding: 14,
+  },
+  headerText: { flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  body: { paddingHorizontal: 16, paddingBottom: 16 },
+  startRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  startLabel: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
+  travelRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 2 },
+  line: { width: 2, height: 20, backgroundColor: COLORS.border, marginLeft: 5 },
+  travelText: { fontSize: 12, color: COLORS.textHint },
+  stopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 4 },
+  dot: {
+    width: 12, height: 12, borderRadius: 6,
+    backgroundColor: COLORS.primary, marginTop: 3,
+  },
+  dotDest: { backgroundColor: COLORS.accent },
+  dotHotel: { backgroundColor: '#1d4ed8' },
+  stopInfo: { flex: 1 },
+  stopName: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
+  stopTime: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+});
 
 export default function ResultScreen({ nav, params }) {
   const { data } = params;
@@ -34,7 +169,13 @@ export default function ResultScreen({ nav, params }) {
   const hari = jadwal[selectedDay] || {};
   const destinations = hari.destinasi || [];
   const mapDest = destinations.map((d) => ({ latitude: d.latitude, longitude: d.longitude, nama: d.nama }));
-  const mapHtml = buildMapHtml(itinerary.start_latitude, itinerary.start_longitude, mapDest);
+
+  const warna = WARNA_RUTE[selectedDay % WARNA_RUTE.length];
+  const hotelHari = hari.hotel_malam || null;
+  const prevHotel = selectedDay > 0 ? jadwal[selectedDay - 1]?.hotel_malam : null;
+  const dayStartLat = prevHotel?.latitude ?? itinerary.start_latitude;
+  const dayStartLng = prevHotel?.longitude ?? itinerary.start_longitude;
+  const mapHtml = buildMapHtml(dayStartLat, dayStartLng, mapDest, warna, hotelHari);
 
   async function mulaiNavigasi() {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -66,7 +207,6 @@ export default function ResultScreen({ nav, params }) {
 
   return (
     <View style={styles.container}>
-      {/* ── Peta Fullscreen Overlay ── */}
       {mapExpanded && (
         <View style={styles.mapFullscreen}>
           <WebView
@@ -76,12 +216,10 @@ export default function ResultScreen({ nav, params }) {
             javaScriptEnabled
             scrollEnabled={false}
           />
-          {/* Tombol collapse */}
           <TouchableOpacity style={styles.collapseBtn} onPress={() => setMapExpanded(false)} activeOpacity={0.85}>
             <Ionicons name="contract" size={18} color="#fff" />
             <Text style={styles.collapseBtnText}>Kecilkan</Text>
           </TouchableOpacity>
-          {/* Tombol navigasi tetap tersedia */}
           <TouchableOpacity
             style={[styles.navBtn, isNavigating && styles.navBtnStop]}
             onPress={isNavigating ? selesaiNavigasi : mulaiNavigasi}
@@ -95,7 +233,6 @@ export default function ResultScreen({ nav, params }) {
         </View>
       )}
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
@@ -104,7 +241,6 @@ export default function ResultScreen({ nav, params }) {
         <Text style={styles.headerTitle}>Rencana Perjalanan</Text>
       </View>
 
-      {/* Budget Summary — gunakan rincian_biaya dari backend jika tersedia */}
       {(() => {
         const rb           = itinerary.rincian_biaya;
         const totalMakan   = rb ? rb.makan.total    : 100000 * itinerary.duration_days;
@@ -168,7 +304,6 @@ export default function ResultScreen({ nav, params }) {
                 </Text>
               </View>
             </ScrollView>
-            {/* Info hotel */}
             {itinerary.rincian_biaya?.hotel && (
               <View style={styles.hotelNote}>
                 <Ionicons name="bed-outline" size={14} color={COLORS.primary} />
@@ -194,7 +329,6 @@ export default function ResultScreen({ nav, params }) {
         );
       })()}
 
-      {/* Day Tabs */}
       {jadwal.length > 1 && (
         <View style={styles.tabWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
@@ -214,7 +348,6 @@ export default function ResultScreen({ nav, params }) {
       )}
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Peta normal (tersembunyi saat expand) */}
         {!mapExpanded && (
           <View style={styles.mapWrap}>
             <WebView
@@ -239,10 +372,8 @@ export default function ResultScreen({ nav, params }) {
             </TouchableOpacity>
           </View>
         )}
-        {/* Placeholder tinggi peta saat expand (agar scroll tidak lompat) */}
         {mapExpanded && <View style={{ height: 12 }} />}
 
-        {/* Info Hari */}
         <View style={styles.infoRow}>
           <View style={styles.infoCard}>
             <Ionicons name="cash-outline" size={18} color={COLORS.primary} />
@@ -256,7 +387,6 @@ export default function ResultScreen({ nav, params }) {
           </View>
         </View>
 
-        {/* Daftar Destinasi */}
         <Text style={styles.sectionTitle}>Destinasi Hari {hari.hari}</Text>
         {destinations.map((dest, i) => (
           <View key={i} style={styles.destCard}>
@@ -284,7 +414,20 @@ export default function ResultScreen({ nav, params }) {
           </View>
         ))}
 
-        {/* Kembali ke titik awal */}
+        {hotelHari && (
+          <View style={styles.hotelCard}>
+            <View style={styles.hotelCardIcon}>
+              <Text style={{ fontSize: 20 }}>🏨</Text>
+            </View>
+            <View style={styles.hotelCardBody}>
+              <Text style={styles.hotelCardName}>{hotelHari.nama}</Text>
+              <Text style={styles.hotelCardSub}>
+                {'⭐'.repeat(Math.round(hotelHari.bintang || 0))} · {formatRupiah(hotelHari.harga_per_malam)}/malam
+              </Text>
+            </View>
+          </View>
+        )}
+
         {hari.rute_kembali && (
           <View style={styles.returnCard}>
             <View style={styles.returnIcon}>
@@ -298,6 +441,12 @@ export default function ResultScreen({ nav, params }) {
             </View>
           </View>
         )}
+
+        <RundownSection
+          destinations={destinations}
+          hotelMalam={hotelHari}
+          isFirstDay={selectedDay === 0}
+        />
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -419,6 +568,20 @@ const styles = StyleSheet.create({
   destStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   stat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statText: { fontSize: 11, color: COLORS.textSecondary },
+
+  hotelCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#eff6ff', borderRadius: RADIUS.md,
+    marginHorizontal: 12, marginBottom: 10,
+    padding: 14, borderWidth: 1, borderColor: '#bfdbfe', ...SHADOW.small,
+  },
+  hotelCardIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center',
+  },
+  hotelCardBody: { flex: 1 },
+  hotelCardName: { fontSize: 14, fontWeight: '700', color: '#1d4ed8' },
+  hotelCardSub: { fontSize: 12, color: '#3b82f6', marginTop: 3 },
 
   returnCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

@@ -1,7 +1,4 @@
-import { WARNA_RUTE } from '../constants/theme';
-
-// Peta rute itinerary — navigasi turn-by-turn lengkap seperti web
-export function buildMapHtml(startLat, startLng, destinations) {
+export function buildMapHtml(startLat, startLng, destinations, color = '#0d9488', hotelMalam = null) {
   const destJson = JSON.stringify(
     destinations.map((d, i) => ({
       lat: d.latitude,
@@ -14,7 +11,7 @@ export function buildMapHtml(startLat, startLng, destinations) {
   const waypoints = [
     [startLat, startLng],
     ...destinations.map((d) => [d.latitude, d.longitude]),
-    [startLat, startLng],
+    hotelMalam ? [hotelMalam.latitude, hotelMalam.longitude] : [startLat, startLng],
   ];
   const osrmCoords = waypoints.map((p) => `${p[1]},${p[0]}`).join(';');
   const straightLine = JSON.stringify(waypoints);
@@ -24,10 +21,18 @@ export function buildMapHtml(startLat, startLng, destinations) {
   const markersJs = destinations.map((d, i) => `
     L.marker([${d.latitude},${d.longitude}],{
       icon:L.divIcon({className:'',
-        html:'<div style="background:#ea580c;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">${i + 1}</div>',
+        html:'<div style="background:${color};color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">${i + 1}</div>',
         iconSize:[32,32],iconAnchor:[16,16]})
     }).addTo(map).bindPopup('<b>${(d.nama || d.name || '').replace(/'/g, "\\'")}</b>');
   `).join('\n');
+
+  const hotelJs = hotelMalam ? `
+    L.marker([${hotelMalam.latitude},${hotelMalam.longitude}],{
+      icon:L.divIcon({className:'',
+        html:'<div style="background:#1d4ed8;color:#fff;border-radius:6px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">🏨</div>',
+        iconSize:[34,34],iconAnchor:[17,17]})
+    }).addTo(map).bindPopup('<b>${(hotelMalam.nama || 'Hotel').replace(/'/g, "\\'")}</b><br>${'⭐'.repeat(Math.round(hotelMalam.bintang || 0))} · Rp ${hotelMalam.harga_per_malam ? hotelMalam.harga_per_malam.toLocaleString('id-ID') : '-'}/malam');
+  ` : '';
 
   return `<!DOCTYPE html>
 <html>
@@ -44,7 +49,6 @@ export function buildMapHtml(startLat, startLng, destinations) {
       border-radius:20px;font-size:12px;font-weight:700;z-index:999;pointer-events:none}
     #status.hidden{display:none}
 
-    /* ── Navigation HUD (sama persis web) ── */
     #nav-hud{display:none;position:absolute;bottom:0;left:0;right:0;z-index:950}
     #nav-hud.show{display:block}
     #nav-header{background:#1d4ed8;padding:8px 14px;
@@ -61,7 +65,6 @@ export function buildMapHtml(startLat, startLng, destinations) {
       border-top:1px solid rgba(13,148,136,.12)}
     #nav-dots{display:flex;gap:5px;align-items:center}
 
-    /* Toast tiba */
     #toast{display:none;position:absolute;top:16px;left:50%;transform:translateX(-50%);
       background:#0d9488;color:#fff;padding:12px 24px;border-radius:20px;
       font-weight:700;font-size:14px;z-index:9999;text-align:center;
@@ -69,7 +72,6 @@ export function buildMapHtml(startLat, startLng, destinations) {
     #toast.show{display:block;animation:slideIn .3s ease}
     @keyframes slideIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
-    /* Selesai overlay */
     #done-overlay{display:none;position:absolute;inset:0;z-index:9998;
       background:rgba(0,0,0,.4);align-items:center;justify-content:center}
     #done-overlay.show{display:flex}
@@ -81,7 +83,6 @@ export function buildMapHtml(startLat, startLng, destinations) {
   <div id="map"></div>
   <div id="status">Memuat rute...</div>
 
-  <!-- Navigation HUD -->
   <div id="nav-hud">
     <div id="nav-header">
       <div style="display:flex;align-items:center">
@@ -109,10 +110,8 @@ export function buildMapHtml(startLat, startLng, destinations) {
     </div>
   </div>
 
-  <!-- Toast -->
   <div id="toast"></div>
 
-  <!-- Done Overlay -->
   <div id="done-overlay">
     <div id="done-card">
       <p style="font-size:36px;margin-bottom:8px">🎉</p>
@@ -127,25 +126,27 @@ export function buildMapHtml(startLat, startLng, destinations) {
   <script>
     const DESTINATIONS = ${destJson};
     const START = { lat:${startLat}, lng:${startLng} };
+    const ROUTE_COLOR = '${color}';
 
     const map = L.map('map',{zoomControl:true}).setView([${centerLat},${centerLng}],12);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
 
-    // Marker titik awal
     L.marker([${startLat},${startLng}],{
       icon:L.divIcon({className:'',
-        html:'<div style="background:#0d9488;color:#fff;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.3);font-size:18px">🏠</div>',
-        iconSize:[38,38],iconAnchor:[19,19]})
+        html:'<div style="background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+        iconSize:[14,14],iconAnchor:[7,7]})
     }).addTo(map).bindPopup('<b>Titik Awal</b>');
 
     ${markersJs}
+    ${hotelJs}
 
     let routeLayer = null;
 
-    // ── OSRM rute keseluruhan ────────────────────────────────────────
     async function muatRute() {
       const s = document.getElementById('status');
       s.textContent = 'Memuat rute jalan...'; s.classList.remove('hidden');
+      routeLayer = L.polyline(${straightLine},{color:ROUTE_COLOR,weight:4,opacity:.6,dashArray:'8 6'}).addTo(map);
+      map.fitBounds(routeLayer.getBounds(),{padding:[24,24]});
       try {
         const ctrl = new AbortController();
         setTimeout(()=>ctrl.abort(), 9000);
@@ -155,22 +156,19 @@ export function buildMapHtml(startLat, startLng, destinations) {
         const coords = data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
         const km = (data.routes[0].distance/1000).toFixed(1);
         const mnt = Math.round(data.routes[0].duration/60);
+        map.removeLayer(routeLayer);
         L.polyline(coords,{color:'#fff',weight:8,opacity:.8}).addTo(map);
-        routeLayer = L.polyline(coords,{color:'#0d9488',weight:5,opacity:.9}).addTo(map);
+        routeLayer = L.polyline(coords,{color:ROUTE_COLOR,weight:5,opacity:.9}).addTo(map);
         map.fitBounds(routeLayer.getBounds(),{padding:[24,24]});
         s.textContent = km+' km  ·  ~'+mnt+' menit';
         setTimeout(()=>s.classList.add('hidden'),3500);
       } catch(e) {
-        // Fallback garis lurus
-        routeLayer = L.polyline(${straightLine},{color:'#0d9488',weight:4,opacity:.6,dashArray:'8 6'}).addTo(map);
-        map.fitBounds(routeLayer.getBounds(),{padding:[24,24]});
         s.textContent = 'Estimasi rute';
         setTimeout(()=>s.classList.add('hidden'),2500);
       }
     }
     muatRute();
 
-    // ── Navigasi state ───────────────────────────────────────────────
     const PANAH = {
       'depart':'↑','straight':'↑','arrive':'🏁','merge':'↑','continue':'↑',
       'turn-right':'↪','turn-left':'↩','turn-slight right':'↗','turn-slight left':'↖',
@@ -191,8 +189,8 @@ export function buildMapHtml(startLat, startLng, destinations) {
     let navRouteLayers = [];
     let lastFetch = 0;
     let sedangFetch = false;
-    const JARAK_TIBA = 200;   // meter
-    const THROTTLE   = 8000;  // ms
+    const JARAK_TIBA = 200;
+    const THROTTLE   = 8000;
 
     function renderDots() {
       const el = document.getElementById('nav-dots');
@@ -233,7 +231,6 @@ export function buildMapHtml(startLat, startLng, destinations) {
           document.getElementById('done-overlay').classList.add('show');
           document.getElementById('nav-hud').classList.remove('show');
           isNavigating = false;
-          // Beritahu React Native
           if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({type:'selesai',total:DESTINATIONS.length}));
         },3000);
         return;
@@ -258,13 +255,11 @@ export function buildMapHtml(startLat, startLng, destinations) {
         const route = data.routes[0];
         const latlngs = route.geometry.coordinates.map(c=>[c[1],c[0]]);
 
-        // Hapus route nav lama
         navRouteLayers.forEach(l=>map.removeLayer(l)); navRouteLayers=[];
         const ol = L.polyline(latlngs,{color:'#fff',weight:10,opacity:.7}).addTo(map);
         const rl = L.polyline(latlngs,{color:'#1d4ed8',weight:6,opacity:.95}).addTo(map);
         navRouteLayers.push(ol,rl);
 
-        // Update HUD
         document.getElementById('nav-jarak-dest').textContent = fmtJarak(route.distance);
         document.getElementById('nav-eta').textContent = fmtMenit(route.duration);
 
@@ -276,13 +271,11 @@ export function buildMapHtml(startLat, startLng, destinations) {
           document.getElementById('nav-jarak-step').textContent = 'dalam '+fmtJarak(step.distance||0);
         }
       } catch(e) {
-        // Diam saja jika gagal
       } finally {
         sedangFetch = false;
       }
     }
 
-    // ── Dipanggil dari React Native ──────────────────────────────────
     function startNavigation() {
       isNavigating = true;
       indeksNav = 0;
@@ -317,16 +310,12 @@ export function buildMapHtml(startLat, startLng, destinations) {
       const dest = DESTINATIONS[indeksNav];
       const jarak = haversine(lat, lng, dest.lat, dest.lng);
 
-      // Cek tiba
       if (jarak <= JARAK_TIBA) { tibaDiDestinasi(); return; }
 
-      // Update live distance
       document.getElementById('nav-jarak-dest').textContent = fmtJarak(jarak);
 
-      // Auto-center
       map.panTo(latlng,{animate:true,duration:.5});
 
-      // Fetch turn-by-turn
       fetchNavRoute(lat, lng);
     }
   </script>

@@ -8,13 +8,15 @@ function pesanError(error, fallback) {
   return fallback;
 }
 
-export async function generateItinerary({ duration, budget, startLat, startLng, city, category }) {
+export async function generateItinerary({ duration, budget, startLat, startLng, city, category, includeHotel = false, includeMeals = true }) {
   try {
     const payload = {
       duration_days: duration,
       total_budget: budget,
       start_latitude: startLat,
       start_longitude: startLng,
+      include_hotel: includeHotel,
+      include_meals: includeMeals,
       ...(city && { city_preference: city }),
       ...(category && { category_preference: category }),
     };

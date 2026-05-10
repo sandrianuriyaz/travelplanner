@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Alert, ActivityIndicator, Modal, SafeAreaView,
+  ScrollView, Alert, ActivityIndicator, Modal, SafeAreaView, Switch,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,8 @@ export default function PlannerScreen({ nav }) {
   const [lng, setLng] = useState('');
   const [kota, setKota] = useState('');
   const [kategori, setKategori] = useState('');
+  const [includeHotel, setIncludeHotel] = useState(false);
+  const [includeMeals, setIncludeMeals] = useState(true);
   const [loadingGps, setLoadingGps] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
 
@@ -68,7 +70,7 @@ export default function PlannerScreen({ nav }) {
     if (!budgetNum || budgetNum <= 0) { Alert.alert('Peringatan', 'Anggaran harus lebih dari 0.'); return; }
     if (isNaN(latNum) || isNaN(lngNum)) { Alert.alert('Peringatan', 'Pilih lokasi awal terlebih dahulu.'); return; }
 
-    const result = await generate({ budget: budgetNum, duration: durasi, startLat: latNum, startLng: lngNum, city: kota, category: kategori });
+    const result = await generate({ budget: budgetNum, duration: durasi, startLat: latNum, startLng: lngNum, city: kota, category: kategori, includeHotel, includeMeals });
     if (result) nav.navigate('Result', { data: result });
     else Alert.alert('Gagal', generateError || 'Tidak dapat membuat itinerary.');
   }
@@ -242,6 +244,36 @@ export default function PlannerScreen({ nav }) {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.label}>Opsi Perjalanan</Text>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleTitle}>Menginap di Hotel</Text>
+              {durasi < 2 && (
+                <Text style={styles.toggleWarning}>Minimal 2 hari untuk menginap</Text>
+              )}
+            </View>
+            <Switch
+              value={includeHotel}
+              onValueChange={(v) => setIncludeHotel(v)}
+              disabled={durasi < 2}
+              trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+              thumbColor={includeHotel ? COLORS.primary : '#f4f3f4'}
+            />
+          </View>
+          <View style={[styles.toggleRow, { marginTop: 12 }]}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleTitle}>Estimasi Makan</Text>
+            </View>
+            <Switch
+              value={includeMeals}
+              onValueChange={(v) => setIncludeMeals(v)}
+              trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
+              thumbColor={includeMeals ? COLORS.primary : '#f4f3f4'}
+            />
+          </View>
+        </View>
+
         {generateError ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle-outline" size={16} color={COLORS.error} />
@@ -374,6 +406,13 @@ const styles = StyleSheet.create({
   kategoriCardActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   kategoriText: { fontSize: 11, fontWeight: '600', color: COLORS.primary, textAlign: 'center' },
   kategoriTextActive: { color: '#fff' },
+
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  toggleInfo: { flex: 1, marginRight: 12 },
+  toggleTitle: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
+  toggleWarning: { fontSize: 12, color: COLORS.warning, marginTop: 2 },
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
