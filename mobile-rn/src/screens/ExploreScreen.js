@@ -140,7 +140,7 @@ export default function ExploreScreen({ nav }) {
       </View>
 
       {/* Filter Kategori */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingLeft: 12, paddingRight: 20, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
         {KATEGORI_LIST.map((k) => (
           <TouchableOpacity
             key={k}
@@ -153,7 +153,7 @@ export default function ExploreScreen({ nav }) {
       </ScrollView>
 
       {/* Filter Kota */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kotaRow} contentContainerStyle={{ paddingLeft: 12, paddingRight: 20, gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kotaRow} contentContainerStyle={styles.kotaContent}>
         {['', ...kota].map((k) => (
           <TouchableOpacity
             key={k || 'all'}
@@ -290,17 +290,19 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 15, color: COLORS.textPrimary },
   filterRow: { marginTop: 10, marginBottom: 4 },
+  filterContent: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
   filterChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.border,
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8,
+    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.borderGray,
   },
   filterChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   filterText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
   filterTextActive: { color: '#fff' },
   kotaRow: { marginBottom: 8 },
+  kotaContent: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
   kotaChip: {
-    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16,
-    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, marginRight: 8,
+    backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.borderGray,
   },
   kotaChipActive: { backgroundColor: '#E3F2FD', borderColor: COLORS.primary },
   kotaText: { fontSize: 12, color: COLORS.textHint },
