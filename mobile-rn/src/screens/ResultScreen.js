@@ -16,50 +16,58 @@ function fmtWaktu(totalMenit) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function hitungRundown(destinations, hasHotel, isFirstDay) {
-  const START_MENIT = 8 * 60;
-  const END_MENIT = 20 * 60;
-  const totalSlot = END_MENIT - START_MENIT;
+function hitungRundown(destinations, hasHotel) {
+  const MULAI       = 8 * 60;
+  const SELESAI     = 20 * 60;
+  const ISTIRAHAT   = 15;
+  const BUF_HOTEL   = 30;
 
-  const totalTravel = destinations.reduce((s, d) => s + (d.waktu_tempuh_menit || 0), 0);
-  const baseDurasi = destinations.map((d) => d.durasi_kunjungan_menit || 60);
-  const totalBase = baseDurasi.reduce((s, v) => s + v, 0);
-  const hotelTransfer = hasHotel ? 30 : 0;
-  const slackTotal = Math.max(0, totalSlot - totalTravel - totalBase - hotelTransfer);
-  const slackPer = destinations.length > 0 ? Math.floor(slackTotal / destinations.length) : 0;
+  const baseDurasi   = destinations.map((d) => Math.max(30, d.durasi_kunjungan_menit || 60));
+  const totalBase    = baseDurasi.reduce((s, v) => s + v, 0);
+  const totalTravel  = destinations.reduce((s, d) => s + (d.waktu_tempuh_menit || 30), 0);
+  const bufHotel     = hasHotel ? BUF_HOTEL : 0;
+  const available    = SELESAI - MULAI - totalTravel - bufHotel - destinations.length * ISTIRAHAT;
+
+  let durasiOptimal;
+  if (available >= totalBase) {
+    const extra = Math.floor((available - totalBase) / Math.max(1, destinations.length) / 5) * 5;
+    durasiOptimal = baseDurasi.map((b) => b + extra);
+  } else {
+    const scale = Math.max(0, available) / (totalBase || 1);
+    durasiOptimal = baseDurasi.map((b) => Math.max(30, Math.round(b * scale / 5) * 5));
+  }
 
   const stops = [];
-  let cursor = START_MENIT;
+  let cursor = MULAI;
 
   destinations.forEach((d, i) => {
-    const travelMnt = d.waktu_tempuh_menit || 0;
-    const arrMnt = cursor + travelMnt;
-    const durMnt = baseDurasi[i] + slackPer;
-    const depMnt = arrMnt + durMnt;
+    const travelMnt = d.waktu_tempuh_menit || 30;
+    const arrMnt    = cursor + travelMnt;
+    const durMnt    = durasiOptimal[i];
+    const depMnt    = arrMnt + durMnt + ISTIRAHAT;
 
     stops.push({
       nama: d.nama,
       travelMnt,
       jarak: d.jarak_dari_sebelumnya_km,
       arrivalMnt: arrMnt,
-      departureMnt: depMnt,
+      departureMnt: arrMnt + durMnt,
       durMnt,
     });
 
     cursor = depMnt;
   });
 
-  return { stops, hotelCheckin: hasHotel ? fmtWaktu(cursor + hotelTransfer) : null };
+  return { stops, hotelCheckin: hasHotel ? fmtWaktu(cursor + bufHotel) : null };
 }
 
 function RundownSection({ destinations, hotelMalam, isFirstDay }) {
   const [open, setOpen] = useState(false);
   const hasHotel = !!hotelMalam;
-  const hasTiming = destinations.length > 0 && destinations[0].waktu_tempuh_menit !== undefined;
 
-  if (!hasTiming) return null;
+  if (!destinations.length) return null;
 
-  const { stops, hotelCheckin } = hitungRundown(destinations, hasHotel, isFirstDay);
+  const { stops, hotelCheckin } = hitungRundown(destinations, hasHotel);
 
   return (
     <View style={rdStyles.wrap}>
@@ -342,17 +350,20 @@ export default function ResultScreen({ nav, params }) {
       {jadwal.length > 1 && (
         <View style={styles.tabWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
-            {jadwal.map((j, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[styles.tabPill, selectedDay === i && styles.tabPillActive]}
-                onPress={() => setSelectedDay(i)}
-              >
-                <Text style={[styles.tabPillText, selectedDay === i && styles.tabPillTextActive]}>
-                  Hari {j.hari}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {jadwal.map((j, i) => {
+              const c = WARNA_RUTE[i % WARNA_RUTE.length];
+              return (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.tabPill, selectedDay === i && { backgroundColor: c, borderColor: c }]}
+                  onPress={() => setSelectedDay(i)}
+                >
+                  <Text style={[styles.tabPillText, selectedDay === i && styles.tabPillTextActive]}>
+                    Hari {j.hari}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -397,10 +408,10 @@ export default function ResultScreen({ nav, params }) {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Destinasi Hari {hari.hari}</Text>
+        <Text style={[styles.sectionTitle, { color: warna }]}>Destinasi Hari {hari.hari}</Text>
         {destinations.map((dest, i) => (
-          <View key={i} style={styles.destCard}>
-            <View style={styles.destNum}>
+          <View key={i} style={[styles.destCard, { borderLeftWidth: 3, borderLeftColor: warna }]}>
+            <View style={[styles.destNum, { backgroundColor: warna }]}>
               <Text style={styles.destNumText}>{dest.urutan}</Text>
             </View>
             <View style={styles.destBody}>
