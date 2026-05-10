@@ -122,50 +122,56 @@ export default function ExploreScreen({ nav }) {
         </View>
       </View>
 
-      {/* Search */}
-      <View style={styles.searchWrap}>
-        <Ionicons name="search-outline" size={18} color={COLORS.textHint} style={{ marginRight: 8 }} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Cari destinasi..."
-          placeholderTextColor={COLORS.textHint}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={COLORS.textHint} />
-          </TouchableOpacity>
-        )}
+      {/* Search + Filter dalam satu panel putih */}
+      <View style={styles.filterPanel}>
+        {/* Search */}
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={18} color={COLORS.textHint} style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Cari destinasi..."
+            placeholderTextColor={COLORS.textHint}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={18} color={COLORS.textHint} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Divider */}
+        <View style={styles.filterDivider} />
+
+        {/* Filter Kategori */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
+          {KATEGORI_LIST.map((k) => (
+            <TouchableOpacity
+              key={k}
+              style={[styles.filterChip, selectedKat === k && styles.filterChipActive]}
+              onPress={() => setSelectedKat(k)}
+            >
+              <Text style={[styles.filterText, selectedKat === k && styles.filterTextActive]}>{k}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Filter Kota */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kotaContent}>
+          {['', ...kota].map((k) => (
+            <TouchableOpacity
+              key={k || 'all'}
+              style={[styles.kotaChip, selectedKota === k && styles.kotaChipActive]}
+              onPress={() => setSelectedKota(k)}
+            >
+              <Text style={[styles.kotaText, selectedKota === k && styles.kotaTextActive]}>
+                {k || 'Semua Kota'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
-
-      {/* Filter Kategori */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterContent}>
-        {KATEGORI_LIST.map((k) => (
-          <TouchableOpacity
-            key={k}
-            style={[styles.filterChip, selectedKat === k && styles.filterChipActive]}
-            onPress={() => setSelectedKat(k)}
-          >
-            <Text style={[styles.filterText, selectedKat === k && styles.filterTextActive]}>{k}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Filter Kota */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.kotaRow} contentContainerStyle={styles.kotaContent}>
-        {['', ...kota].map((k) => (
-          <TouchableOpacity
-            key={k || 'all'}
-            style={[styles.kotaChip, selectedKota === k && styles.kotaChipActive]}
-            onPress={() => setSelectedKota(k)}
-          >
-            <Text style={[styles.kotaText, selectedKota === k && styles.kotaTextActive]}>
-              {k || 'Semua Kota'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
       {/* List */}
       {loading ? (
@@ -282,26 +288,27 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
   headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  filterPanel: {
+    backgroundColor: '#fff', marginHorizontal: 12, marginTop: 12,
+    borderRadius: RADIUS.md, paddingTop: 4, paddingBottom: 8, ...SHADOW.small,
+  },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', marginHorizontal: 12, marginTop: 12,
-    borderRadius: RADIUS.md, paddingHorizontal: 14, height: 46,
-    borderWidth: 1, borderColor: COLORS.border, ...SHADOW.small,
+    paddingHorizontal: 14, height: 46,
   },
   searchInput: { flex: 1, fontSize: 15, color: COLORS.textPrimary },
-  filterRow: { marginTop: 10, marginBottom: 4 },
-  filterContent: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
+  filterDivider: { height: 1, backgroundColor: COLORS.borderGray, marginHorizontal: 14, marginBottom: 8 },
+  filterContent: { paddingHorizontal: 12, paddingBottom: 8 },
   filterChip: {
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8,
-    backgroundColor: '#fff', borderWidth: 1.5, borderColor: COLORS.borderGray,
+    paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, marginRight: 8,
+    backgroundColor: COLORS.background, borderWidth: 1.5, borderColor: COLORS.borderGray,
   },
   filterChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   filterText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
   filterTextActive: { color: '#fff' },
-  kotaRow: { marginBottom: 8 },
-  kotaContent: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
+  kotaContent: { paddingHorizontal: 12 },
   kotaChip: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, marginRight: 8,
+    paddingHorizontal: 14, paddingVertical: 5, borderRadius: 16, marginRight: 8,
     backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.borderGray,
   },
   kotaChipActive: { backgroundColor: '#E3F2FD', borderColor: COLORS.primary },
