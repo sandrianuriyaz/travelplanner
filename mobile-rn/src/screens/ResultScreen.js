@@ -260,8 +260,9 @@ export default function ResultScreen({ nav, params }) {
           s + h.destinasi.reduce((ss, d) => ss + (d.harga_tiket || 0), 0), 0);
         const totalTransport = Math.max(0, totalWisata - totalTiket);
         return (
+          <View style={styles.budgetBarWrap}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
-            style={styles.budgetBar} contentContainerStyle={styles.budgetBarContent}>
+            style={{ flex: 1 }} contentContainerStyle={styles.budgetBarContent}>
             <View style={styles.budgetItem}>
               <Text style={styles.budgetLabel}>Anggaran</Text>
               <Text style={styles.budgetVal}>{formatRupiah(itinerary.total_budget)}</Text>
@@ -296,6 +297,7 @@ export default function ResultScreen({ nav, params }) {
               <Text style={[styles.budgetVal, { color: COLORS.success }]}>{formatRupiah(itinerary.sisa_budget)}</Text>
             </View>
           </ScrollView>
+          </View>
         );
       })()}
 
@@ -485,10 +487,10 @@ const styles = StyleSheet.create({
   backText: { color: '#fff', fontSize: 15 },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700', flex: 1 },
 
-  budgetBar: {
+  budgetBarWrap: {
+    height: 72, flexShrink: 0,
     backgroundColor: '#fff',
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
-    height: 72,
   },
   budgetBarContent: {
     flexDirection: 'row', alignItems: 'center',
