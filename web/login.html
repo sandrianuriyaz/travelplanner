@@ -2,6 +2,13 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0d9488" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Travel Planner" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Masuk — Travel Planner</title>
   <link rel="stylesheet" href="dist/output.css" />
@@ -166,6 +173,11 @@
       } finally {
         setLoading('btn-register', false);
       }
+    }
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   </script>
 </body>
