@@ -224,6 +224,17 @@ export function buildMapHtml(startLat, startLng, destinations, color = '#0d9488'
       const dest = DESTINATIONS[indeksNav];
       navRouteLayers.forEach(l=>map.removeLayer(l)); navRouteLayers=[];
       tampilkanToast('✅ Tiba di '+dest.nama+'!');
+
+      // Kirim ke React Native untuk popup native
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'tiba',
+          nama: dest.nama,
+          indeks: indeksNav + 1,
+          total: DESTINATIONS.length,
+        }));
+      }
+
       indeksNav++;
       if (indeksNav >= DESTINATIONS.length) {
         setTimeout(()=>{

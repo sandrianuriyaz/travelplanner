@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Alert,
+  TouchableOpacity, Alert, Animated,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
@@ -158,8 +158,28 @@ export default function ResultScreen({ nav, params }) {
   const [selectedDay, setSelectedDay] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [arrivedPopup, setArrivedPopup] = useState(null); // { nama, indeks, total }
+  const popupOpacity = useRef(new Animated.Value(0)).current;
   const webViewRef = useRef(null);
   const locationSub = useRef(null);
+  const popupTimer = useRef(null);
+
+  function tampilkanPopupTiba(nama, indeks, total) {
+    if (popupTimer.current) clearTimeout(popupTimer.current);
+    setArrivedPopup({ nama, indeks, total });
+    Animated.sequence([
+      Animated.timing(popupOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(popupOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start(() => setArrivedPopup(null));
+  }
+
+  function handleWebViewMessage(event) {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === 'tiba') tampilkanPopupTiba(msg.nama, msg.indeks, msg.total);
+    } catch {}
+  }
 
   useEffect(() => () => locationSub.current?.remove(), []);
 
@@ -215,6 +235,20 @@ export default function ResultScreen({ nav, params }) {
 
   return (
     <View style={styles.container}>
+
+      {/* ── Popup Tiba di Destinasi ── */}
+      {arrivedPopup && (
+        <Animated.View style={[styles.arrivedPopup, { opacity: popupOpacity }]}>
+          <Text style={styles.arrivedEmoji}>📍</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.arrivedTitle}>Kamu Sudah Sampai!</Text>
+            <Text style={styles.arrivedName} numberOfLines={1}>{arrivedPopup.nama}</Text>
+            <Text style={styles.arrivedSub}>Stop {arrivedPopup.indeks} dari {arrivedPopup.total}</Text>
+          </View>
+          <Ionicons name="checkmark-circle" size={28} color="#fff" />
+        </Animated.View>
+      )}
+
       {mapExpanded && (
         <View style={styles.mapFullscreen}>
           <WebView
@@ -223,6 +257,7 @@ export default function ResultScreen({ nav, params }) {
             style={{ flex: 1 }}
             javaScriptEnabled
             scrollEnabled={false}
+            onMessage={handleWebViewMessage}
           />
           <TouchableOpacity style={styles.collapseBtn} onPress={() => setMapExpanded(false)} activeOpacity={0.85}>
             <Ionicons name="contract" size={18} color="#fff" />
@@ -375,6 +410,7 @@ export default function ResultScreen({ nav, params }) {
               style={{ flex: 1 }}
               javaScriptEnabled
               scrollEnabled={false}
+              onMessage={handleWebViewMessage}
             />
             <TouchableOpacity style={styles.expandBtn} onPress={() => setMapExpanded(true)} activeOpacity={0.85}>
               <Ionicons name="expand" size={16} color="#fff" />
@@ -567,6 +603,18 @@ const styles = StyleSheet.create({
   },
   navBtnStop: { backgroundColor: COLORS.error },
   navBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  arrivedPopup: {
+    position: 'absolute', top: 60, left: 16, right: 16, zIndex: 9999,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.lg, padding: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    ...SHADOW.medium,
+  },
+  arrivedEmoji: { fontSize: 28 },
+  arrivedTitle: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  arrivedName: { fontSize: 15, fontWeight: '700', color: '#fff', marginTop: 1 },
+  arrivedSub: { fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
 
   infoRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginBottom: 4 },
   infoCard: {
