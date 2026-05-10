@@ -9,14 +9,15 @@ import { COLORS, SHADOW, RADIUS } from '../constants/theme';
 import { getAllDestinasi, getDaftarKota } from '../services/destinasiService';
 import { formatRupiah } from '../utils/currency';
 
-const KATEGORI_LIST = ['Semua', 'Bahari', 'Cagar Alam', 'Budaya', 'Taman Wisata Alam', 'Taman Hiburan'];
+const KATEGORI_LIST = ['Semua', 'Budaya', 'Bahari', 'Cagar Alam', 'Taman Hiburan', 'Pusat Perbelanjaan', 'Tempat Ibadah'];
 
 const KATEGORI_COLOR = {
-  'Bahari':           { bg: '#E3F2FD', text: '#1565C0', icon: 'water-outline' },
-  'Cagar Alam':       { bg: '#E8F5E9', text: '#2E7D32', icon: 'leaf-outline' },
-  'Budaya':           { bg: '#FFF3E0', text: '#E65100', icon: 'business-outline' },
-  'Taman Wisata Alam':{ bg: '#F3E5F5', text: '#6A1B9A', icon: 'flower-outline' },
-  'Taman Hiburan':    { bg: '#FCE4EC', text: '#AD1457', icon: 'happy-outline' },
+  'Budaya':              { bg: '#FFF3E0', text: '#E65100', icon: 'business-outline' },
+  'Bahari':              { bg: '#E3F2FD', text: '#1565C0', icon: 'water-outline' },
+  'Cagar Alam':          { bg: '#E8F5E9', text: '#2E7D32', icon: 'leaf-outline' },
+  'Taman Hiburan':       { bg: '#FCE4EC', text: '#AD1457', icon: 'happy-outline' },
+  'Pusat Perbelanjaan':  { bg: '#F3E5F5', text: '#6A1B9A', icon: 'bag-handle-outline' },
+  'Tempat Ibadah':       { bg: '#E8EAF6', text: '#283593', icon: 'moon-outline' },
 };
 
 function getKategoriStyle(kat) {
