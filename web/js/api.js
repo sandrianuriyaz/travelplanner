@@ -1,4 +1,4 @@
-const API_BASE = 'https://travelplanner-oturmzec0-sandria-nuriyas-projects.vercel.app/api';
+const API_BASE = 'https://travelplanner-dun.vercel.app/api';
 
 // ── Token Management ──────────────────────────────────────────────
 const auth = {

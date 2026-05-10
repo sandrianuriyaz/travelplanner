@@ -1,4 +1,4 @@
-const BASE_URL = 'https://travelplanner-oturmzec0-sandria-nuriyas-projects.vercel.app';
+const BASE_URL = 'https://travelplanner-dun.vercel.app';
 
 export const API = {
   BASE_URL,
