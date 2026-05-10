@@ -30,3 +30,6 @@ npm-debug.log*
 # IDE
 .vscode/
 .idea/
+
+# Claude Code memory
+.claude/
