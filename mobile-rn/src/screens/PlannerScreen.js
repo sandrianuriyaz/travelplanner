@@ -9,14 +9,16 @@ import * as Location from 'expo-location';
 import { COLORS, SHADOW, RADIUS } from '../constants/theme';
 import useItineraryStore from '../store/itineraryStore';
 import { buildMapPickerHtml } from '../utils/mapPickerHtml';
+import { formatRupiah } from '../utils/currency';
 
 const KATEGORI = [
-  { label: 'Semua',   value: '',                  icon: 'grid-outline' },
-  { label: 'Bahari',  value: 'Bahari',             icon: 'water-outline' },
-  { label: 'Alam',    value: 'Cagar Alam',         icon: 'leaf-outline' },
-  { label: 'Budaya',  value: 'Budaya',             icon: 'business-outline' },
-  { label: 'Taman',   value: 'Taman Wisata Alam',  icon: 'flower-outline' },
-  { label: 'Hiburan', value: 'Taman Hiburan',      icon: 'happy-outline' },
+  { label: 'Semua',      value: '',                    icon: 'grid-outline' },
+  { label: 'Budaya',     value: 'Budaya',              icon: 'business-outline' },
+  { label: 'Bahari',     value: 'Bahari',              icon: 'water-outline' },
+  { label: 'Cagar Alam', value: 'Cagar Alam',          icon: 'leaf-outline' },
+  { label: 'Hiburan',    value: 'Taman Hiburan',       icon: 'happy-outline' },
+  { label: 'Belanja',    value: 'Pusat Perbelanjaan',  icon: 'bag-handle-outline' },
+  { label: 'Ibadah',     value: 'Tempat Ibadah',       icon: 'moon-outline' },
 ];
 
 export default function PlannerScreen({ nav }) {
@@ -101,6 +103,36 @@ export default function PlannerScreen({ nav }) {
               keyboardType="numeric"
             />
           </View>
+          {(() => {
+            const b = parseInt(budget.replace(/\D/g, '') || '0');
+            if (!b) return null;
+            const MAKAN_HARIAN = 75000;
+            const HOTEL_EST   = 200000;
+            const estHotel = includeHotel && durasi >= 2 ? HOTEL_EST * (durasi - 1) : 0;
+            const estMakan = includeMeals ? MAKAN_HARIAN * durasi : 0;
+            const sisaDest = Math.max(0, b - estHotel - estMakan);
+            return (
+              <View style={styles.alokasiBox}>
+                <Text style={styles.alokasiTitle}>Estimasi Alokasi</Text>
+                {estHotel > 0 && (
+                  <View style={styles.alokasiRow}>
+                    <Text style={styles.alokasiLabel}>🏨 Hotel ({durasi - 1} malam)</Text>
+                    <Text style={[styles.alokasiVal, { color: '#7c3aed' }]}>−{formatRupiah(estHotel)}</Text>
+                  </View>
+                )}
+                {estMakan > 0 && (
+                  <View style={styles.alokasiRow}>
+                    <Text style={styles.alokasiLabel}>🍽 Makan ({durasi} hari)</Text>
+                    <Text style={[styles.alokasiVal, { color: '#0891b2' }]}>−{formatRupiah(estMakan)}</Text>
+                  </View>
+                )}
+                <View style={[styles.alokasiRow, styles.alokasiTotal]}>
+                  <Text style={styles.alokasiLabelBold}>🗺 Untuk Destinasi</Text>
+                  <Text style={styles.alokasiValBold}>{formatRupiah(sisaDest)}</Text>
+                </View>
+              </View>
+            );
+          })()}
         </View>
 
         {/* Durasi */}
@@ -413,6 +445,24 @@ const styles = StyleSheet.create({
   toggleInfo: { flex: 1, marginRight: 12 },
   toggleTitle: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
   toggleWarning: { fontSize: 12, color: COLORS.warning, marginTop: 2 },
+
+  alokasiBox: {
+    marginTop: 12, backgroundColor: '#f8fafc', borderRadius: RADIUS.sm,
+    padding: 12, borderWidth: 1, borderColor: COLORS.borderGray,
+  },
+  alokasiTitle: {
+    fontSize: 10, fontWeight: '700', color: COLORS.textHint,
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8,
+  },
+  alokasiRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  alokasiLabel: { fontSize: 12, color: COLORS.textSecondary },
+  alokasiVal: { fontSize: 12, fontWeight: '600' },
+  alokasiTotal: {
+    borderTopWidth: 1, borderTopColor: COLORS.borderGray,
+    marginTop: 4, paddingTop: 8, marginBottom: 0,
+  },
+  alokasiLabelBold: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  alokasiValBold: { fontSize: 12, fontWeight: '800', color: COLORS.primary },
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
