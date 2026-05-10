@@ -1,4 +1,4 @@
-const BASE_URL = 'https://stipulate-very-superjet.ngrok-free.dev';
+const BASE_URL = 'https://travelplanner-oturmzec0-sandria-nuriyas-projects.vercel.app';
 
 export const API = {
   BASE_URL,
