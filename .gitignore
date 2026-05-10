@@ -13,7 +13,6 @@ backend/generated/
 backend/prisma/migrations/
 
 # Build output
-web/dist/
 web/input.css
 
 # Data files
